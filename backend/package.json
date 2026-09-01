@@ -1,0 +1,36 @@
+{
+  "name": "inventario-bienes-informaticos-backend",
+  "version": "1.0.0",
+  "description": "Backend para sistema de gestión de inventario de bienes informáticos",
+  "main": "server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js",
+    "migrate": "node migrations/run.js"
+  },
+  "keywords": [
+    "inventario",
+    "bienes",
+    "informáticos",
+    "tribunal"
+  ],
+  "author": "Clint Weslly Gutierrez Cruz",
+  "license": "MIT",
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.5",
+    "date-fns": "^2.30.0",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "express-rate-limit": "^8.7.0",
+    "helmet": "^8.3.0",
+    "jsonwebtoken": "^9.0.2",
+    "postgres": "^3.3.5",
+    "uuid": "^9.0.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  }
+}

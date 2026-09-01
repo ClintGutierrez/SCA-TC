@@ -1,0 +1,28 @@
+{
+  "name": "inventario-bienes-informaticos",
+  "version": "1.0.0",
+  "description": "Sistema de gestión de inventario de bienes informáticos para el Tribunal Constitucional del Perú",
+  "main": "backend/server.js",
+  "type": "module",
+  "scripts": {
+    "setup": "npm install && cd backend && npm install && cd ../frontend && npm install && cd ..",
+    "backend:install": "cd backend && npm install",
+    "backend:migrate": "cd backend && npm run migrate",
+    "backend:dev": "cd backend && npm run dev",
+    "backend:start": "cd backend && npm start",
+    "frontend:install": "cd frontend && npm install",
+    "frontend:dev": "cd frontend && npm run dev",
+    "frontend:build": "cd frontend && npm run build",
+    "dev": "echo 'Ejecuta en terminales separadas: npm run backend:dev y npm run frontend:dev'",
+    "build": "npm run frontend:build"
+  },
+  "keywords": [
+    "inventario",
+    "bienes",
+    "informáticos",
+    "tribunal",
+    "gestión"
+  ],
+  "author": "Clint Weslly Gutierrez Cruz",
+  "license": "MIT"
+}
