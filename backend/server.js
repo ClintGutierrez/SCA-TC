@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
 import postgres from 'postgres';
+import swaggerUi from 'swagger-ui-express';
 import { createAuthRouter } from './routes/auth.js';
 import { createBienesRouter } from './routes/bienes.js';
 import { createMantenimientoRouter } from './routes/mantenimiento.js';
@@ -11,6 +12,7 @@ import { createDepreciacionRouter } from './routes/depreciacion.js';
 import { createReportesRouter } from './routes/reportes.js';
 import { createUsuariosRouter } from './routes/usuarios.js';
 import { ensureAuthColumns, seedDefaultUsers } from './utils/auth.js';
+import { openapiSpec } from './docs/openapi.js';
 
 dotenv.config();
 
@@ -46,6 +48,10 @@ console.log('✓ Conectado a PostgreSQL');
 app.get('/api/health', (req, res) => {
   res.json({ status: 'OK', message: 'Servidor funcionando correctamente' });
 });
+
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(openapiSpec, {
+  customSiteTitle: 'API Inventario - Swagger',
+}));
 
 // Registrar rutas
 app.use('/api/auth', createAuthRouter(sql));
