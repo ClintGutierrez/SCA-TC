@@ -1,0 +1,8 @@
+DB_HOST=db.foullzgpcinqtrcfjtuw.supabase.co
+DB_PORT=5432
+DB_NAME=postgres
+DB_USER=postgres
+DB_PASSWORD=09.LAMISMA.vtc
+DB_SSL=require
+FRONTEND_URL=http://localhost:3000
+JWT_SECRET=R6tr_cHIBlucxFjPvls_CdKd6SWPhfd9_-P2m-T9ZSXEPg0mLgLP24lhIpqtMw2v
