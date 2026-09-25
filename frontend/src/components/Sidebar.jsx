@@ -5,6 +5,7 @@ export default function Sidebar({ isOpen, onViewChange, currentView, onCloseSide
     { id: 'mantenimiento', icon: '🔧', label: 'Mantenimiento', description: 'Control de servicios', roles: ['administrador', 'jefatura', 'tecnico'] },
     { id: 'reportes', icon: '📈', label: 'Reportes', description: 'Análisis y reportes', roles: ['administrador', 'jefatura', 'tecnico'] },
     { id: 'usuarios', icon: '👥', label: 'Usuarios', description: 'Accesos y roles', roles: ['administrador'] },
+    { id: 'auditoria', icon: '🛡️', label: 'Auditoría', description: 'Log de acciones', roles: ['administrador'] },
   ];
 
   const role = currentUser?.rol || 'tecnico';

@@ -9,6 +9,7 @@ import Mantenimiento from './components/Mantenimiento';
 import Reportes from './components/Reportes';
 import Login from './components/Login';
 import Usuarios from './components/Usuarios';
+import Auditoria from './components/Auditoria';
 
 const rolePermissions = {
   administrador: {
@@ -138,6 +139,12 @@ function App() {
     setSidebarOpen(false);
   };
 
+  const handleProfileUpdate = async (profile) => {
+    const response = await api.updateProfile(profile);
+    setCurrentUser(response.data.user);
+    return response.data.user;
+  };
+
   const renderView = () => {
     switch (currentView) {
       case 'dashboard':
@@ -164,6 +171,8 @@ function App() {
         return <Reportes currentUser={currentUser} />;
       case 'usuarios':
         return <Usuarios usuarios={usuarios} onRefresh={fetchUsuarios} currentUser={currentUser} />;
+      case 'auditoria':
+        return <Auditoria />;
       default:
         return <Dashboard bienes={bienes} currentUser={currentUser} />;
     }
@@ -189,6 +198,10 @@ function App() {
     usuarios: {
       title: 'Gestión de usuarios',
       description: 'Administración de accesos, roles y credenciales',
+    },
+    auditoria: {
+      title: 'Log de auditoría',
+      description: 'Trazabilidad de las acciones realizadas en el sistema',
     },
   };
 
@@ -216,6 +229,7 @@ function App() {
     <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(37,99,235,0.16),_transparent_28%),linear-gradient(180deg,_#f8fafc_0%,_#eef2ff_100%)] text-slate-900">
       <NavBar
         currentUser={currentUser}
+        onProfileUpdate={handleProfileUpdate}
         onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
         onLogout={logout}
         searchValue={searchValue}

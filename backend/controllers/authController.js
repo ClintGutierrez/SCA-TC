@@ -171,3 +171,46 @@ export const me = async (req, res, sql) => {
     res.status(500).json({ error: error.message });
   }
 };
+
+export const updateProfile = async (req, res, sql) => {
+  try {
+    const { nombre, email, departamento, password } = req.body;
+    const normalizedName = (nombre || '').trim();
+    const normalizedEmail = (email || '').trim();
+    const normalizedDepartment = (departamento || '').trim();
+
+    if (!normalizedName || !normalizedEmail) {
+      return res.status(400).json({ error: 'Nombre y email son obligatorios' });
+    }
+
+    const duplicateUsers = await sql`
+      SELECT id
+      FROM usuarios
+      WHERE LOWER(email) = LOWER(${normalizedEmail}) AND id <> ${req.user.sub}
+      LIMIT 1
+    `;
+
+    if (duplicateUsers.length > 0) {
+      return res.status(409).json({ error: 'Ya existe un usuario con ese email' });
+    }
+
+    const passwordHash = password ? await hashPassword(password) : null;
+    const users = await sql`
+      UPDATE usuarios
+      SET nombre = ${normalizedName},
+          email = ${normalizedEmail},
+          departamento = ${normalizedDepartment},
+          password_hash = COALESCE(${passwordHash}, password_hash)
+      WHERE id = ${req.user.sub}
+      RETURNING id, nombre, email, departamento, rol, estado, activo_login, last_login, created_at
+    `;
+
+    if (users.length === 0) {
+      return res.status(404).json({ error: 'Usuario no encontrado' });
+    }
+
+    return res.json({ user: safeUser(users[0]) });
+  } catch (error) {
+    return res.status(500).json({ error: error.message });
+  }
+};

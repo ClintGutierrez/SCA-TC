@@ -2,7 +2,7 @@ export default function Dashboard({ bienes, currentUser }) {
   const totalBienes = bienes.length;
   const bienesActivos = bienes.filter(b => b.estado === 'activo').length;
   const bienesInactivos = bienes.filter(b => b.estado !== 'activo').length;
-  const valorTotal = bienes.reduce((sum, b) => sum + (b.costo || 0), 0);
+  const valorTotal = bienes.reduce((sum, b) => sum + Number(b.costo || 0), 0);
   const porcentajeActivos = totalBienes > 0 ? Math.round((bienesActivos / totalBienes) * 100) : 0;
   const valorPromedio = totalBienes > 0 ? valorTotal / totalBienes : 0;
   const equipamientoCritico = bienes.filter(b => (b.tipo || '').toLowerCase().includes('servidor') || (b.tipo || '').toLowerCase().includes('laptop')).length;
