@@ -13,8 +13,6 @@ import { createReportesRouter } from './routes/reportes.js';
 import { createUsuariosRouter } from './routes/usuarios.js';
 import { ensureAuthColumns, seedDefaultUsers } from './utils/auth.js';
 import { openapiSpec } from './docs/openapi.js';
-import { createAuditoriaRouter } from './routes/auditoria.js';
-
 
 dotenv.config();
 
