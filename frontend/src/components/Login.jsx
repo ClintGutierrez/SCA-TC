@@ -20,6 +20,7 @@ export default function Login({ onLogin, loading, error }) {
     { role: 'Administrador', email: 'admin@tc.pe', password: 'Admin123!' },
     { role: 'Jefatura', email: 'jefatura@tc.pe', password: 'Jefe123!' },
     { role: 'Técnico', email: 'tecnico@tc.pe', password: 'Tecnico123!' },
+    { role: 'Auditor', email: 'auditor@tc.pe', password: 'Auditor123!' }, // <- Nuevo
   ];
 
   return (
@@ -48,7 +49,7 @@ export default function Login({ onLogin, loading, error }) {
               ))}
             </div>
 
-            <div className="grid gap-3 sm:grid-cols-3">
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
               {demoAccounts.map((account) => (
                 <div key={account.role} className="rounded-3xl border border-white/10 bg-slate-950/30 px-4 py-4 text-sm text-slate-200">
                   <p className="font-semibold text-white">{account.role}</p>

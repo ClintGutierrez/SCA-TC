@@ -117,4 +117,10 @@ export const getReporteDepreciacion = () => apiClient.get('/reportes/depreciacio
 export const getReporteAsignaciones = () => apiClient.get('/reportes/asignaciones');
 export const getReporteMantenimiento = () => apiClient.get('/reportes/mantenimiento');
 
+// Auditoría
+export const getAuditoria = (filtros) => {
+  const query = new URLSearchParams(filtros).toString();
+  return apiClient.get(`/auditoria?${query}`);
+};
+
 export default apiClient;

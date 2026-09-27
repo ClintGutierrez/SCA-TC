@@ -13,6 +13,7 @@ const sql = postgres({
   user: process.env.DB_USER || 'postgres',
   password: process.env.DB_PASSWORD || 'postgres',
   ssl: process.env.DB_SSL || false,
+  prepare: false, // <-- AÑADE ESTA LÍNEA AQUÍ TAMBIÉN
 });
 
 async function runMigrations() {

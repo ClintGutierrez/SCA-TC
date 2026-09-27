@@ -24,9 +24,16 @@ const defaultUsers = [
     rol: 'tecnico',
     password: 'Tecnico123!',
   },
+  {
+    nombre: 'Auditor OCI',
+    email: 'auditor@tc.pe',
+    departamento: 'Órgano de Control Institucional',
+    rol: 'auditor',
+    password: 'Auditor123!',
+  },
 ];
 
-export const systemRoles = ['administrador', 'jefatura', 'tecnico'];
+export const systemRoles = ['administrador', 'jefatura', 'tecnico', 'auditor'];
 
 const refreshTokenTTLDays = 7;
 

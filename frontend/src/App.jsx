@@ -9,6 +9,7 @@ import Mantenimiento from './components/Mantenimiento';
 import Reportes from './components/Reportes';
 import Login from './components/Login';
 import Usuarios from './components/Usuarios';
+import AuditoriaList from './components/AuditoriaList';
 
 const rolePermissions = {
   administrador: {
@@ -35,6 +36,14 @@ const rolePermissions = {
     canDeleteMaintenance: false,
     canManageUsers: false,
   },
+  auditor: {
+    canCreateAssets: false,
+    canEditAssets: false,
+    canDeleteAssets: false,
+    canCreateMaintenance: false,
+    canDeleteMaintenance: false,
+    canManageUsers: false,
+  },
 };
 
 function App() {
@@ -54,19 +63,22 @@ function App() {
 
   useEffect(() => {
     const bootstrapAuth = async () => {
-      try {
+     try {
         const response = await api.refreshSession();
         const token = response.data?.token;
-
-        if (token) {
-          api.setAuthToken(token);
-        }
-
+        if (token) api.setAuthToken(token);
+        
         setCurrentUser(response.data.user);
-      } catch (error) {
+        // NUEVO: Redirigir si es auditor
+        if (response.data.user.rol === 'auditor') {
+          setCurrentView('auditoria');
+        }
+      }
+      catch (error) {
         api.clearAuthToken();
         setCurrentUser(null);
-      } finally {
+      } 
+      finally {
         setAuthReady(true);
       }
     };
@@ -119,11 +131,15 @@ function App() {
       const response = await api.login({ email, password });
       api.setAuthToken(response.data.token);
       setCurrentUser(response.data.user);
-      setCurrentView('dashboard');
+      
+      // NUEVO: Validar vista según rol
+      setCurrentView(response.data.user.rol === 'auditor' ? 'auditoria' : 'dashboard');
       setSidebarOpen(false);
-    } catch (error) {
+    }
+    catch (error) {
       setAuthError(error?.response?.data?.error || 'No se pudo iniciar sesión');
-    } finally {
+    } 
+    finally {
       setAuthLoading(false);
     }
   };
@@ -164,6 +180,8 @@ function App() {
         return <Reportes currentUser={currentUser} />;
       case 'usuarios':
         return <Usuarios usuarios={usuarios} onRefresh={fetchUsuarios} currentUser={currentUser} />;
+      case 'auditoria':
+        return <AuditoriaList />;
       default:
         return <Dashboard bienes={bienes} currentUser={currentUser} />;
     }
@@ -189,6 +207,10 @@ function App() {
     usuarios: {
       title: 'Gestión de usuarios',
       description: 'Administración de accesos, roles y credenciales',
+    },
+    auditoria: {
+      title: 'Log de Auditoría',
+      description: 'Historial inmutable de eventos y operaciones del sistema',
     },
   };
 

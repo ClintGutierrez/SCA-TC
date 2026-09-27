@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
 import postgres from 'postgres';
+import swaggerUi from 'swagger-ui-express';
 import { createAuthRouter } from './routes/auth.js';
 import { createBienesRouter } from './routes/bienes.js';
 import { createMantenimientoRouter } from './routes/mantenimiento.js';
@@ -11,6 +12,9 @@ import { createDepreciacionRouter } from './routes/depreciacion.js';
 import { createReportesRouter } from './routes/reportes.js';
 import { createUsuariosRouter } from './routes/usuarios.js';
 import { ensureAuthColumns, seedDefaultUsers } from './utils/auth.js';
+import { openapiSpec } from './docs/openapi.js';
+import { createAuditoriaRouter } from './routes/auditoria.js';
+
 
 dotenv.config();
 
@@ -24,6 +28,7 @@ app.use(cors({ origin: FRONTEND_URL, credentials: true }));
 app.use(express.json({ limit: '1mb' }));
 app.use(cookieParser());
 
+
 // Conexión a Base de Datos
 const sql = postgres({
   host: process.env.DB_HOST || 'localhost',
@@ -32,6 +37,7 @@ const sql = postgres({
   user: process.env.DB_USER || 'postgres',
   password: process.env.DB_PASSWORD || 'postgres',
   ssl: process.env.DB_SSL || false,
+  prepare: false, // <-- AÑADE ESTA LÍNEA
 });
 
 await ensureAuthColumns(sql);
@@ -47,6 +53,10 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'OK', message: 'Servidor funcionando correctamente' });
 });
 
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(openapiSpec, {
+  customSiteTitle: 'API Inventario - Swagger',
+}));
+
 // Registrar rutas
 app.use('/api/auth', createAuthRouter(sql));
 app.use('/api/usuarios', createUsuariosRouter(sql));
@@ -54,6 +64,8 @@ app.use('/api/bienes', createBienesRouter(sql));
 app.use('/api/mantenimiento', createMantenimientoRouter(sql));
 app.use('/api/depreciacion', createDepreciacionRouter(sql));
 app.use('/api/reportes', createReportesRouter(sql));
+// ... más    abajo, junto a los otros app.use('/api/...'):
+app.use('/api/auditoria', createAuditoriaRouter(sql));
 
 // Manejo de errores global
 app.use((err, req, res, next) => {

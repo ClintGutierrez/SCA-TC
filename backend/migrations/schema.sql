@@ -79,9 +79,28 @@ CREATE TABLE IF NOT EXISTS asignaciones (
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Tabla de Log de Auditoría
+CREATE TABLE IF NOT EXISTS log_auditoria (
+  id_log SERIAL PRIMARY KEY,
+  fecha_hora TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  usuario VARCHAR(100) NOT NULL,
+  accion VARCHAR(50) NOT NULL,
+  modulo VARCHAR(100) NOT NULL,
+  activo_afectado VARCHAR(255),
+  ip_origen VARCHAR(45),
+  resultado VARCHAR(50),
+  datos_previos JSONB,
+  datos_modificados JSONB
+);
+
 -- Índices
 CREATE INDEX IF NOT EXISTS idx_bienes_estado ON bienes_informaticos(estado);
 CREATE INDEX IF NOT EXISTS idx_bienes_usuario ON bienes_informaticos(usuario_asignado);
 CREATE INDEX IF NOT EXISTS idx_mantenimiento_bien ON mantenimiento(bien_id);
 CREATE INDEX IF NOT EXISTS idx_asignaciones_bien ON asignaciones(bien_id);
 CREATE INDEX IF NOT EXISTS idx_asignaciones_usuario ON asignaciones(usuario_id);
+
+-- Índices para optimizar las consultas del Log de Auditoría
+CREATE INDEX IF NOT EXISTS idx_auditoria_fecha ON log_auditoria(fecha_hora);
+CREATE INDEX IF NOT EXISTS idx_auditoria_usuario ON log_auditoria(usuario);
+CREATE INDEX IF NOT EXISTS idx_auditoria_modulo ON log_auditoria(modulo);

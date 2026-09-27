@@ -15,6 +15,7 @@ const roleLabels = {
   administrador: 'Administrador',
   jefatura: 'Jefatura',
   tecnico: 'Técnico',
+  auditor: 'Auditor', // <- Nuevo
 };
 
 export default function Usuarios({ usuarios: initialUsuarios = [], onRefresh, currentUser }) {
@@ -56,7 +57,7 @@ export default function Usuarios({ usuarios: initialUsuarios = [], onRefresh, cu
         accumulator[role] = (accumulator[role] || 0) + 1;
         return accumulator;
       },
-      { total: 0, administrador: 0, jefatura: 0, tecnico: 0 },
+      { total: 0, administrador: 0, jefatura: 0, tecnico: 0, auditor: 0 }, // <- Agrega auditor: 0
     );
   }, [usuarios]);
 
@@ -141,12 +142,13 @@ export default function Usuarios({ usuarios: initialUsuarios = [], onRefresh, cu
 
   return (
     <div className="space-y-6">
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
         {[
           { label: 'Total usuarios', value: roleStats.total, tone: 'from-blue-500 to-cyan-400' },
           { label: 'Administradores', value: roleStats.administrador, tone: 'from-violet-500 to-fuchsia-400' },
           { label: 'Jefaturas', value: roleStats.jefatura, tone: 'from-emerald-500 to-teal-400' },
           { label: 'Técnicos', value: roleStats.tecnico, tone: 'from-amber-500 to-orange-400' },
+          { label: 'Auditores', value: roleStats.auditor, tone: 'from-rose-500 to-pink-400' },
         ].map((item) => (
           <div key={item.label} className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm">
             <p className="text-sm font-medium text-slate-500">{item.label}</p>
@@ -209,6 +211,7 @@ export default function Usuarios({ usuarios: initialUsuarios = [], onRefresh, cu
                   <option value="administrador">Administrador</option>
                   <option value="jefatura">Jefatura</option>
                   <option value="tecnico">Técnico</option>
+                  <option value="auditor">Auditor</option>{/* <- Nueva opción */}
                 </select>
               </label>
               <label className="block">
