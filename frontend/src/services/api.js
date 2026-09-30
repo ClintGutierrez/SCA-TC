@@ -98,6 +98,7 @@ export const getBienById = (id) => apiClient.get(`/bienes/${id}`);
 export const createBien = (data) => apiClient.post('/bienes', data);
 export const updateBien = (id, data) => apiClient.put(`/bienes/${id}`, data);
 export const deleteBien = (id) => apiClient.delete(`/bienes/${id}`);
+export const getHistorialBien = (id) => apiClient.get(`/bienes/${id}/historial`);
 
 // Mantenimiento
 export const getMantenimiento = () => apiClient.get('/mantenimiento');

@@ -29,7 +29,7 @@ const rolePermissions = {
   },
   tecnico: {
     canCreateAssets: false,
-    canEditAssets: false,
+    canEditAssets: true,
     canDeleteAssets: false,
     canCreateMaintenance: true,
     canDeleteMaintenance: false,
