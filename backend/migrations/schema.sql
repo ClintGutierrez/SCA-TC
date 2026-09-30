@@ -57,19 +57,21 @@ CREATE INDEX IF NOT EXISTS idx_auth_sessions_user_id ON auth_sessions(user_id);
 CREATE INDEX IF NOT EXISTS idx_auth_sessions_expires_at ON auth_sessions(expires_at);
 
 -- Registro de acciones realizadas en el sistema
-CREATE TABLE IF NOT EXISTS auditoria (
+ALTER TABLE IF EXISTS auditoria RENAME TO audit_log;
+
+CREATE TABLE IF NOT EXISTS audit_log (
   id SERIAL PRIMARY KEY,
   usuario_id INTEGER REFERENCES usuarios(id) ON DELETE SET NULL,
-  accion VARCHAR(20) NOT NULL,
-  recurso VARCHAR(255) NOT NULL,
-  metodo VARCHAR(10) NOT NULL,
-  estado_http INTEGER NOT NULL,
-  ip VARCHAR(100),
+  tabla_afectada TEXT,
+  operacion TEXT,
+  registro_id INTEGER,
+  datos_anteriores JSONB,
+  datos_nuevos JSONB,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX IF NOT EXISTS idx_auditoria_usuario ON auditoria(usuario_id);
-CREATE INDEX IF NOT EXISTS idx_auditoria_created_at ON auditoria(created_at);
+CREATE INDEX IF NOT EXISTS idx_audit_log_usuario ON audit_log(usuario_id);
+CREATE INDEX IF NOT EXISTS idx_audit_log_created_at ON audit_log(created_at);
 
 -- Tabla de Depreciación
 CREATE TABLE IF NOT EXISTS depreciacion (

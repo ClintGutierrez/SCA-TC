@@ -53,7 +53,7 @@ export default function InventarioList({ bienes, onRefresh, canCreate, canEdit, 
       onRefresh();
     } catch (error) {
       console.error('Error:', error);
-      alert('Error al guardar el bien');
+      alert(error?.response?.data?.error || 'Error al guardar el bien');
     } finally {
       setLoading(false);
     }
