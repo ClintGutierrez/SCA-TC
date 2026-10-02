@@ -1,17 +1,12 @@
 import { useEffect, useState } from 'react';
 
-export default function NavBar({ currentUser, onProfileUpdate, onToggleSidebar, onLogout, searchValue, onSearchValueChange, title, description }) {
-  const [localSearch, setLocalSearch] = useState(searchValue || '');
+export default function NavBar({ currentUser, sidebarOpen, onProfileUpdate, onToggleSidebar, onLogout, title, description }) {
   const [profileOpen, setProfileOpen] = useState(false);
   const [editingProfile, setEditingProfile] = useState(false);
   const [profileForm, setProfileForm] = useState({ nombre: '', email: '', departamento: '', password: '' });
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileError, setProfileError] = useState('');
   const [profileSuccess, setProfileSuccess] = useState('');
-
-  useEffect(() => {
-    setLocalSearch(searchValue || '');
-  }, [searchValue]);
 
   useEffect(() => {
     if (!profileOpen) {
@@ -27,11 +22,6 @@ export default function NavBar({ currentUser, onProfileUpdate, onToggleSidebar, 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [profileOpen]);
-
-  const handleSearch = (event) => {
-    event.preventDefault();
-    onSearchValueChange(localSearch);
-  };
 
   const openProfile = () => {
     setProfileForm({
@@ -73,12 +63,18 @@ export default function NavBar({ currentUser, onProfileUpdate, onToggleSidebar, 
     <nav className="sticky top-0 z-30 border-b border-white/60 bg-white/75 text-slate-900 shadow-[0_10px_30px_rgba(15,23,42,0.06)] backdrop-blur-xl">
       <div className="mx-auto flex max-w-[1800px] items-center gap-4 px-4 py-4 lg:px-6">
         <button
+          type="button"
           onClick={onToggleSidebar}
           className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-700 shadow-sm transition hover:border-blue-200 hover:text-blue-700 lg:hidden"
-          title="Abrir menú"
+          title={sidebarOpen ? 'Cerrar menú' : 'Abrir menú'}
+          aria-label={sidebarOpen ? 'Cerrar menú' : 'Abrir menú'}
+          aria-expanded={sidebarOpen}
+          aria-controls="main-sidebar"
         >
-          <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+          <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            {sidebarOpen
+              ? <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 6l12 12M18 6L6 18" />
+              : <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />}
           </svg>
         </button>
 
@@ -91,21 +87,6 @@ export default function NavBar({ currentUser, onProfileUpdate, onToggleSidebar, 
           <h1 className="truncate text-lg font-semibold text-slate-900 lg:text-xl">{title}</h1>
           <p className="mt-0.5 hidden text-sm text-slate-500 lg:block">{description}</p>
         </div>
-
-        <form onSubmit={handleSearch} className="hidden w-full max-w-xl lg:block">
-          <div className="relative">
-            <input
-              type="text"
-              placeholder="Buscar bienes, usuarios o reportes..."
-              value={localSearch}
-              onChange={(event) => setLocalSearch(event.target.value)}
-              className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 pl-11 text-sm text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-blue-300 focus:bg-white focus:ring-4 focus:ring-blue-100"
-            />
-            <svg className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
-          </div>
-        </form>
 
         <div className="flex items-center gap-3 flex-shrink-0">
           <button

@@ -16,6 +16,31 @@ const createRefreshTokenExpiresAt = () => {
   return expiresAt;
 };
 
+const recordAuthEvent = async (sql, { user = null, email, successful, reason, operation }) => {
+  try {
+    const eventOperation = operation || (successful ? 'LOGIN' : 'LOGIN_FAILED');
+    const details = {
+      email,
+      resultado: successful ? 'exitoso' : 'fallido',
+      ...(reason ? { motivo: reason } : {}),
+    };
+
+    await sql`
+      INSERT INTO audit_log (usuario_id, tabla_afectada, operacion, registro_id, datos_anteriores, datos_nuevos)
+      VALUES (
+        ${user?.id || null},
+        'autenticacion',
+        ${eventOperation},
+        ${user?.id || null},
+        ${null},
+        ${details}
+      )
+    `;
+  } catch (error) {
+    console.error('Error registrando inicio de sesión:', error.message);
+  }
+};
+
 export const login = async (req, res, sql) => {
   try {
     const { email, password } = req.body;
@@ -34,18 +59,21 @@ export const login = async (req, res, sql) => {
     `;
 
     if (users.length === 0) {
+      await recordAuthEvent(sql, { email: normalizedEmail, successful: false, reason: 'credenciales_invalidas' });
       return res.status(401).json({ error: 'Credenciales inválidas' });
     }
 
     const user = users[0];
 
     if (!user.password_hash || user.activo_login === false || user.estado === 'inactivo') {
+      await recordAuthEvent(sql, { user, email: user.email, successful: false, reason: 'acceso_deshabilitado' });
       return res.status(403).json({ error: 'Usuario sin acceso habilitado' });
     }
 
     const isValid = await comparePassword(normalizedPassword, user.password_hash);
 
     if (!isValid) {
+      await recordAuthEvent(sql, { user, email: user.email, successful: false, reason: 'credenciales_invalidas' });
       return res.status(401).json({ error: 'Credenciales inválidas' });
     }
 
@@ -65,6 +93,8 @@ export const login = async (req, res, sql) => {
         VALUES (${user.id}, ${refreshTokenHash}, ${createRefreshTokenExpiresAt()})
       `;
     });
+
+    await recordAuthEvent(sql, { user, email: user.email, successful: true });
 
     res.cookie(refreshCookieName, refreshToken, getRefreshCookieOptions());
 
@@ -143,12 +173,28 @@ export const logout = async (req, res, sql) => {
 
     if (refreshToken) {
       const tokenHash = hashToken(refreshToken);
+      const sessions = await sql`
+        SELECT u.id, u.email
+        FROM auth_sessions s
+        INNER JOIN usuarios u ON u.id = s.user_id
+        WHERE s.token_hash = ${tokenHash} AND s.revoked_at IS NULL
+        LIMIT 1
+      `;
 
       await sql`
         UPDATE auth_sessions
         SET revoked_at = NOW()
         WHERE token_hash = ${tokenHash} AND revoked_at IS NULL
       `;
+
+      if (sessions[0]) {
+        await recordAuthEvent(sql, {
+          user: sessions[0],
+          email: sessions[0].email,
+          successful: true,
+          operation: 'LOGOUT',
+        });
+      }
     }
 
     res.clearCookie(refreshCookieName, getRefreshCookieOptions());

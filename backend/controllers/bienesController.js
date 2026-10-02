@@ -50,8 +50,15 @@ export const createBien = async (req, res, sql) => {
     });
     res.status(201).json(bien[0]);
   } catch (error) {
-    if (error.code === '23505' && error.constraint?.includes('numero_serie')) {
+    const isDuplicateSerie = (error.code === '23505' || error.message?.includes('duplicate key')) && (
+      error.constraint?.includes('numero_serie') || error.message?.includes('numero_serie')
+    );
+
+    if (isDuplicateSerie) {
       return res.status(409).json({ error: 'Ya existe un bien registrado con ese número de serie' });
+    }
+    if (error.code === '23505' || error.message?.includes('duplicate key')) {
+      return res.status(409).json({ error: 'Ya existe un registro duplicado con los datos enviados' });
     }
     res.status(500).json({ error: error.message });
   }
@@ -94,6 +101,12 @@ export const updateBien = async (req, res, sql) => {
     }
     res.json(bien[0]);
   } catch (error) {
+    if ((error.code === '23505' || error.message?.includes('duplicate key')) && error.constraint?.includes('numero_serie')) {
+      return res.status(409).json({ error: 'Ya existe un bien registrado con ese número de serie' });
+    }
+    if (error.code === '23505' || error.message?.includes('duplicate key')) {
+      return res.status(409).json({ error: 'Ya existe un registro duplicado con los datos enviados' });
+    }
     res.status(500).json({ error: error.message });
   }
 };

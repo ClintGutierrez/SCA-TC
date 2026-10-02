@@ -17,7 +17,6 @@ export default function InventarioList({ bienes, onRefresh, canCreate, canEdit, 
     usuarioAsignado: '',
     ubicacion: '',
   });
-
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));

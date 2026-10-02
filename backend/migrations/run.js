@@ -27,6 +27,19 @@ async function runMigrations() {
     await sql`SELECT 1`;
     console.log('✓ Conectado a PostgreSQL');
 
+    await sql.unsafe(`ALTER TABLE IF EXISTS bienes_informaticos DROP CONSTRAINT IF EXISTS bienes_informaticos_numero_serie_key;`);
+    await sql.unsafe(`
+      WITH ranked AS (
+        SELECT id,
+               ROW_NUMBER() OVER (PARTITION BY numero_serie ORDER BY id) AS rn
+        FROM bienes_informaticos
+        WHERE numero_serie IS NOT NULL
+      )
+      UPDATE bienes_informaticos
+      SET numero_serie = NULL
+      WHERE id IN (SELECT id FROM ranked WHERE rn > 1);
+    `);
+
     const schemaPath = path.join(path.dirname(fileURLToPath(import.meta.url)), 'schema.sql');
     const schema = fs.readFileSync(schemaPath, 'utf8');
 

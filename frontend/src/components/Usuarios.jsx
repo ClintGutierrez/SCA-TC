@@ -15,6 +15,7 @@ const roleLabels = {
   administrador: 'Administrador',
   jefatura: 'Jefatura',
   tecnico: 'Técnico',
+  auditor: 'Auditor',
 };
 
 export default function Usuarios({ usuarios: initialUsuarios = [], onRefresh, currentUser }) {
@@ -25,7 +26,6 @@ export default function Usuarios({ usuarios: initialUsuarios = [], onRefresh, cu
   const [showForm, setShowForm] = useState(false);
   const [error, setError] = useState('');
   const [formData, setFormData] = useState(defaultForm);
-
   useEffect(() => {
     setUsuarios(initialUsuarios);
   }, [initialUsuarios]);
@@ -209,6 +209,7 @@ export default function Usuarios({ usuarios: initialUsuarios = [], onRefresh, cu
                   <option value="administrador">Administrador</option>
                   <option value="jefatura">Jefatura</option>
                   <option value="tecnico">Técnico</option>
+                  <option value="auditor">Auditor</option>
                 </select>
               </label>
               <label className="block">

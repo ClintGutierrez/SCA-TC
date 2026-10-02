@@ -36,6 +36,14 @@ const rolePermissions = {
     canDeleteMaintenance: false,
     canManageUsers: false,
   },
+  auditor: {
+    canCreateAssets: false,
+    canEditAssets: false,
+    canDeleteAssets: false,
+    canCreateMaintenance: false,
+    canDeleteMaintenance: false,
+    canManageUsers: false,
+  },
 };
 
 function App() {
@@ -48,7 +56,6 @@ function App() {
   const [bienes, setBienes] = useState([]);
   const [usuarios, setUsuarios] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [searchValue, setSearchValue] = useState('');
 
   const role = currentUser?.rol || 'tecnico';
   const permissions = rolePermissions[role] || rolePermissions.tecnico;
@@ -64,6 +71,7 @@ function App() {
         }
 
         setCurrentUser(response.data.user);
+        setCurrentView(response.data.user?.rol === 'auditor' ? 'auditoria' : 'dashboard');
       } catch (error) {
         api.clearAuthToken();
         setCurrentUser(null);
@@ -83,8 +91,10 @@ function App() {
     const loadData = async () => {
       setLoading(true);
       try {
-        const bienesResponse = await api.getBienes();
-        setBienes(bienesResponse.data);
+        if (currentUser.rol !== 'auditor') {
+          const bienesResponse = await api.getBienes();
+          setBienes(bienesResponse.data);
+        }
 
         if (permissions.canManageUsers) {
           const usuariosResponse = await api.getUsuarios();
@@ -120,7 +130,7 @@ function App() {
       const response = await api.login({ email, password });
       api.setAuthToken(response.data.token);
       setCurrentUser(response.data.user);
-      setCurrentView('dashboard');
+      setCurrentView(response.data.user?.rol === 'auditor' ? 'auditoria' : 'dashboard');
       setSidebarOpen(false);
     } catch (error) {
       setAuthError(error?.response?.data?.error || 'No se pudo iniciar sesión');
@@ -229,11 +239,10 @@ function App() {
     <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(37,99,235,0.16),_transparent_28%),linear-gradient(180deg,_#f8fafc_0%,_#eef2ff_100%)] text-slate-900">
       <NavBar
         currentUser={currentUser}
+        sidebarOpen={sidebarOpen}
         onProfileUpdate={handleProfileUpdate}
-        onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
+        onToggleSidebar={() => setSidebarOpen((open) => !open)}
         onLogout={logout}
-        searchValue={searchValue}
-        onSearchValueChange={setSearchValue}
         title={currentMeta.title}
         description={currentMeta.description}
       />

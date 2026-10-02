@@ -6,7 +6,7 @@ CREATE TABLE IF NOT EXISTS bienes_informaticos (
   tipo VARCHAR(100),
   marca VARCHAR(100),
   modelo VARCHAR(100),
-  numero_serie VARCHAR(100) UNIQUE,
+  numero_serie VARCHAR(100),
   fecha_adquisicion DATE NOT NULL,
   costo DECIMAL(12, 2) NOT NULL,
   usuario_asignado VARCHAR(255),
