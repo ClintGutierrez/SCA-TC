@@ -22,11 +22,17 @@ const buildUserPayload = async (sql, body, existingPasswordHash = null) => {
 
 export const getUsuarios = async (req, res, sql) => {
   try {
-    const usuarios = await sql`
-      SELECT id, nombre, email, departamento, rol, estado, activo_login, last_login, created_at
-      FROM usuarios
-      ORDER BY created_at DESC, nombre ASC
-    `;
+    const usuarios = req.user?.rol === 'auditor'
+      ? await sql`
+        SELECT id, nombre, email, estado
+        FROM usuarios
+        ORDER BY created_at DESC, nombre ASC
+      `
+      : await sql`
+        SELECT id, nombre, email, departamento, rol, estado, activo_login, last_login, created_at
+        FROM usuarios
+        ORDER BY created_at DESC, nombre ASC
+      `;
 
     res.json(usuarios);
   } catch (error) {

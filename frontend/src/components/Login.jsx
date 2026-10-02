@@ -20,12 +20,13 @@ export default function Login({ onLogin, loading, error }) {
     { role: 'Administrador', email: 'admin@tc.pe', password: 'Admin123!' },
     { role: 'Jefatura', email: 'jefatura@tc.pe', password: 'Jefe123!' },
     { role: 'Técnico', email: 'tecnico@tc.pe', password: 'Tecnico123!' },
+    { role: 'Auditor', email: 'auditor@tc.pe', password: 'Auditor123!' },
   ];
 
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(37,99,235,0.22),_transparent_30%),linear-gradient(135deg,_#020617_0%,_#0f172a_45%,_#111827_100%)] px-4 py-8 text-white">
-      <div className="mx-auto grid min-h-[calc(100vh-4rem)] max-w-7xl overflow-hidden rounded-[36px] border border-white/10 bg-white/5 shadow-[0_40px_120px_rgba(15,23,42,0.45)] backdrop-blur xl:grid-cols-[1.05fr_0.95fr]">
-        <div className="relative overflow-hidden border-b border-white/10 px-8 py-10 sm:px-12 xl:border-b-0 xl:border-r">
+      <div className="mx-auto grid min-h-[calc(100vh-4rem)] max-w-7xl overflow-hidden rounded-[36px] border border-white/10 bg-white/5 shadow-[0_40px_120px_rgba(15,23,42,0.45)] backdrop-blur lg:grid-cols-[1.05fr_0.95fr]">
+        <div className="relative overflow-hidden border-b border-white/10 px-8 py-10 sm:px-12 lg:border-b-0 lg:border-r">
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,_rgba(56,189,248,0.25),_transparent_30%),radial-gradient(circle_at_bottom_left,_rgba(99,102,241,0.18),_transparent_28%)]" />
           <div className="relative flex h-full flex-col justify-between gap-10">
             <div>
@@ -48,11 +49,11 @@ export default function Login({ onLogin, loading, error }) {
               ))}
             </div>
 
-            <div className="grid gap-3 sm:grid-cols-3">
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
               {demoAccounts.map((account) => (
-                <div key={account.role} className="rounded-3xl border border-white/10 bg-slate-950/30 px-4 py-4 text-sm text-slate-200">
+                <div key={account.role} className="min-w-0 rounded-2xl border border-white/10 bg-slate-950/30 px-3 py-3 text-xs text-slate-200">
                   <p className="font-semibold text-white">{account.role}</p>
-                  <p className="mt-1 text-slate-400">{account.email}</p>
+                  <p className="mt-1 break-all text-slate-400">{account.email}</p>
                   <p className="text-slate-400">{account.password}</p>
                 </div>
               ))}

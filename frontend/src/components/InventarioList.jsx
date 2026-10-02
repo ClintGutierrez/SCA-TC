@@ -17,7 +17,6 @@ export default function InventarioList({ bienes, onRefresh, canCreate, canEdit, 
     usuarioAsignado: '',
     ubicacion: '',
   });
-
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
@@ -53,7 +52,7 @@ export default function InventarioList({ bienes, onRefresh, canCreate, canEdit, 
       onRefresh();
     } catch (error) {
       console.error('Error:', error);
-      alert('Error al guardar el bien');
+      alert(error?.response?.data?.error || 'Error al guardar el bien');
     } finally {
       setLoading(false);
     }
@@ -303,7 +302,7 @@ export default function InventarioList({ bienes, onRefresh, canCreate, canEdit, 
                       {bien.marca || '-'} {bien.modelo ? `/ ${bien.modelo}` : ''}
                     </td>
                     <td className="px-6 py-4 text-right font-semibold text-slate-900">
-                      S/ {bien.costo?.toFixed(2) || '0.00'}
+                      S/ {Number(bien.costo || 0).toFixed(2)}
                     </td>
                     <td className="px-6 py-4 text-slate-600">
                       {bien.usuario_asignado || <span className="text-slate-400">Sin asignar</span>}

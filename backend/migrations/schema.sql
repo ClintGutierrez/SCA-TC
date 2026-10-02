@@ -6,7 +6,7 @@ CREATE TABLE IF NOT EXISTS bienes_informaticos (
   tipo VARCHAR(100),
   marca VARCHAR(100),
   modelo VARCHAR(100),
-  numero_serie VARCHAR(100) UNIQUE,
+  numero_serie VARCHAR(100),
   fecha_adquisicion DATE NOT NULL,
   costo DECIMAL(12, 2) NOT NULL,
   usuario_asignado VARCHAR(255),
@@ -55,6 +55,23 @@ CREATE TABLE IF NOT EXISTS auth_sessions (
 
 CREATE INDEX IF NOT EXISTS idx_auth_sessions_user_id ON auth_sessions(user_id);
 CREATE INDEX IF NOT EXISTS idx_auth_sessions_expires_at ON auth_sessions(expires_at);
+
+-- Registro de acciones realizadas en el sistema
+ALTER TABLE IF EXISTS auditoria RENAME TO audit_log;
+
+CREATE TABLE IF NOT EXISTS audit_log (
+  id SERIAL PRIMARY KEY,
+  usuario_id INTEGER REFERENCES usuarios(id) ON DELETE SET NULL,
+  tabla_afectada TEXT,
+  operacion TEXT,
+  registro_id INTEGER,
+  datos_anteriores JSONB,
+  datos_nuevos JSONB,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_audit_log_usuario ON audit_log(usuario_id);
+CREATE INDEX IF NOT EXISTS idx_audit_log_created_at ON audit_log(created_at);
 
 -- Tabla de Depreciación
 CREATE TABLE IF NOT EXISTS depreciacion (

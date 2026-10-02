@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001';
 
 const apiClient = axios.create({
   baseURL: `${API_URL}/api`,
@@ -83,6 +83,7 @@ apiClient.interceptors.response.use(
 // Auth
 export const login = (credentials) => apiClient.post('/auth/login', credentials);
 export const getMe = () => apiClient.get('/auth/me');
+export const updateProfile = (profile) => apiClient.put('/auth/profile', profile);
 export const logout = () => apiClient.post('/auth/logout');
 
 // Usuarios
@@ -116,5 +117,6 @@ export const getReporteInventario = () => apiClient.get('/reportes/inventario');
 export const getReporteDepreciacion = () => apiClient.get('/reportes/depreciacion');
 export const getReporteAsignaciones = () => apiClient.get('/reportes/asignaciones');
 export const getReporteMantenimiento = () => apiClient.get('/reportes/mantenimiento');
+export const getAuditoria = (filtros = {}) => apiClient.get('/auditoria', { params: { limit: 200, ...filtros } });
 
 export default apiClient;

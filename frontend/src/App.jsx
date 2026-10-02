@@ -9,6 +9,7 @@ import Mantenimiento from './components/Mantenimiento';
 import Reportes from './components/Reportes';
 import Login from './components/Login';
 import Usuarios from './components/Usuarios';
+import Auditoria from './components/Auditoria';
 
 const rolePermissions = {
   administrador: {
@@ -28,10 +29,18 @@ const rolePermissions = {
     canManageUsers: false,
   },
   tecnico: {
-    canCreateAssets: false,
+    canCreateAssets: true,
     canEditAssets: false,
     canDeleteAssets: false,
     canCreateMaintenance: true,
+    canDeleteMaintenance: false,
+    canManageUsers: false,
+  },
+  auditor: {
+    canCreateAssets: false,
+    canEditAssets: false,
+    canDeleteAssets: false,
+    canCreateMaintenance: false,
     canDeleteMaintenance: false,
     canManageUsers: false,
   },
@@ -47,7 +56,6 @@ function App() {
   const [bienes, setBienes] = useState([]);
   const [usuarios, setUsuarios] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [searchValue, setSearchValue] = useState('');
 
   const role = currentUser?.rol || 'tecnico';
   const permissions = rolePermissions[role] || rolePermissions.tecnico;
@@ -63,6 +71,7 @@ function App() {
         }
 
         setCurrentUser(response.data.user);
+        setCurrentView(response.data.user?.rol === 'auditor' ? 'auditoria' : 'dashboard');
       } catch (error) {
         api.clearAuthToken();
         setCurrentUser(null);
@@ -82,8 +91,10 @@ function App() {
     const loadData = async () => {
       setLoading(true);
       try {
-        const bienesResponse = await api.getBienes();
-        setBienes(bienesResponse.data);
+        if (currentUser.rol !== 'auditor') {
+          const bienesResponse = await api.getBienes();
+          setBienes(bienesResponse.data);
+        }
 
         if (permissions.canManageUsers) {
           const usuariosResponse = await api.getUsuarios();
@@ -119,7 +130,7 @@ function App() {
       const response = await api.login({ email, password });
       api.setAuthToken(response.data.token);
       setCurrentUser(response.data.user);
-      setCurrentView('dashboard');
+      setCurrentView(response.data.user?.rol === 'auditor' ? 'auditoria' : 'dashboard');
       setSidebarOpen(false);
     } catch (error) {
       setAuthError(error?.response?.data?.error || 'No se pudo iniciar sesión');
@@ -136,6 +147,12 @@ function App() {
     setUsuarios([]);
     setCurrentView('dashboard');
     setSidebarOpen(false);
+  };
+
+  const handleProfileUpdate = async (profile) => {
+    const response = await api.updateProfile(profile);
+    setCurrentUser(response.data.user);
+    return response.data.user;
   };
 
   const renderView = () => {
@@ -164,6 +181,8 @@ function App() {
         return <Reportes currentUser={currentUser} />;
       case 'usuarios':
         return <Usuarios usuarios={usuarios} onRefresh={fetchUsuarios} currentUser={currentUser} />;
+      case 'auditoria':
+        return <Auditoria />;
       default:
         return <Dashboard bienes={bienes} currentUser={currentUser} />;
     }
@@ -189,6 +208,10 @@ function App() {
     usuarios: {
       title: 'Gestión de usuarios',
       description: 'Administración de accesos, roles y credenciales',
+    },
+    auditoria: {
+      title: 'Log de auditoría',
+      description: 'Trazabilidad de las acciones realizadas en el sistema',
     },
   };
 
@@ -216,10 +239,10 @@ function App() {
     <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(37,99,235,0.16),_transparent_28%),linear-gradient(180deg,_#f8fafc_0%,_#eef2ff_100%)] text-slate-900">
       <NavBar
         currentUser={currentUser}
-        onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
+        sidebarOpen={sidebarOpen}
+        onProfileUpdate={handleProfileUpdate}
+        onToggleSidebar={() => setSidebarOpen((open) => !open)}
         onLogout={logout}
-        searchValue={searchValue}
-        onSearchValueChange={setSearchValue}
         title={currentMeta.title}
         description={currentMeta.description}
       />

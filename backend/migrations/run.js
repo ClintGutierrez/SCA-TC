@@ -6,19 +6,39 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
+const requiredDatabaseEnv = ['DB_HOST', 'DB_PORT', 'DB_NAME', 'DB_USER', 'DB_PASSWORD', 'DB_SSL'];
+const missingDatabaseEnv = requiredDatabaseEnv.filter((name) => !process.env[name]);
+
+if (missingDatabaseEnv.length > 0) {
+  throw new Error(`Faltan variables de Supabase: ${missingDatabaseEnv.join(', ')}`);
+}
+
 const sql = postgres({
-  host: process.env.DB_HOST || 'localhost',
-  port: process.env.DB_PORT || 5432,
-  database: process.env.DB_NAME || 'inventario_bienes',
-  user: process.env.DB_USER || 'postgres',
-  password: process.env.DB_PASSWORD || 'postgres',
-  ssl: process.env.DB_SSL || false,
+  host: process.env.DB_HOST,
+  port: Number(process.env.DB_PORT),
+  database: process.env.DB_NAME,
+  user: process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
+  ssl: process.env.DB_SSL === 'false' ? false : process.env.DB_SSL,
 });
 
 async function runMigrations() {
   try {
     await sql`SELECT 1`;
     console.log('✓ Conectado a PostgreSQL');
+
+    await sql.unsafe(`ALTER TABLE IF EXISTS bienes_informaticos DROP CONSTRAINT IF EXISTS bienes_informaticos_numero_serie_key;`);
+    await sql.unsafe(`
+      WITH ranked AS (
+        SELECT id,
+               ROW_NUMBER() OVER (PARTITION BY numero_serie ORDER BY id) AS rn
+        FROM bienes_informaticos
+        WHERE numero_serie IS NOT NULL
+      )
+      UPDATE bienes_informaticos
+      SET numero_serie = NULL
+      WHERE id IN (SELECT id FROM ranked WHERE rn > 1);
+    `);
 
     const schemaPath = path.join(path.dirname(fileURLToPath(import.meta.url)), 'schema.sql');
     const schema = fs.readFileSync(schemaPath, 'utf8');
