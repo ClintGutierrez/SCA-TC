@@ -24,11 +24,24 @@ export const getBienById = async (req, res, sql) => {
 
 export const createBien = async (req, res, sql) => {
   try {
-    const { nombre, descripcion, tipo, marca, modelo, numeroSerie, fechaAdquisicion, costo, usuarioAsignado, ubicacion } = req.body;
+    const {
+      nombre, descripcion, tipo, marca, modelo, numeroSerie, fechaAdquisicion, costo,
+      usuarioAsignado, ubicacion, especificaciones, imagenUrl, codigoPatrimonial,
+      direccionMac, ordenCompra,
+    } = req.body;
     
     const bien = await sql`
-      INSERT INTO bienes_informaticos (nombre, descripcion, tipo, marca, modelo, numero_serie, fecha_adquisicion, costo, usuario_asignado, estado, ubicacion)
-      VALUES (${nombre}, ${descripcion}, ${tipo}, ${marca}, ${modelo}, ${numeroSerie}, ${fechaAdquisicion}, ${costo}, ${usuarioAsignado}, 'activo', ${ubicacion})
+      INSERT INTO bienes_informaticos (
+        nombre, descripcion, tipo, marca, modelo, numero_serie, fecha_adquisicion, costo,
+        usuario_asignado, estado, ubicacion, especificaciones, imagen_url,
+        codigo_patrimonial, direccion_mac, orden_compra
+      )
+      VALUES (
+        ${nombre}, ${descripcion}, ${tipo}, ${marca}, ${modelo}, ${numeroSerie},
+        ${fechaAdquisicion}, ${costo}, ${usuarioAsignado}, 'activo', ${ubicacion},
+        ${sql.json(especificaciones || {})}, ${imagenUrl || null}, ${codigoPatrimonial || null},
+        ${direccionMac || null}, ${ordenCompra || null}
+      )
       RETURNING *
     `;
     res.status(201).json(bien[0]);
@@ -43,8 +56,15 @@ export const updateBien = async (req, res, sql) => {
     const bodyValue = (key, currentValue) => (
       Object.prototype.hasOwnProperty.call(req.body, key) ? req.body[key] : currentValue
     );
-    const userId = req.user?.sub || req.user?.id;
+    const userId = req.user?.sub ?? req.user?.id ?? null;
     const bien = await sql.begin(async (transaction) => {
+      const user = await transaction`
+        SELECT id FROM usuarios WHERE id = ${userId} FOR KEY SHARE
+      `;
+      if (user.length === 0) {
+        return { status: 401, error: 'Sesión inválida. Inicia sesión nuevamente.' };
+      }
+
       const currentBien = await transaction`SELECT * FROM bienes_informaticos WHERE id = ${id} FOR UPDATE`;
       if (currentBien.length === 0) {
         return { status: 404, error: 'Bien no encontrado' };
@@ -67,6 +87,13 @@ export const updateBien = async (req, res, sql) => {
         usuarioAsignado: bodyValue('usuarioAsignado', previous.usuario_asignado),
         estado: bodyValue('estado', previous.estado),
         ubicacion: bodyValue('ubicacion', previous.ubicacion),
+        especificaciones: req.body.especificaciones !== undefined
+          ? req.body.especificaciones
+          : previous.especificaciones || {},
+        imagenUrl: bodyValue('imagenUrl', previous.imagen_url),
+        codigoPatrimonial: bodyValue('codigoPatrimonial', previous.codigo_patrimonial),
+        direccionMac: bodyValue('direccionMac', previous.direccion_mac),
+        ordenCompra: bodyValue('ordenCompra', previous.orden_compra),
       };
 
       if (!updatedValues.nombre || !updatedValues.tipo || !updatedValues.fechaAdquisicion || updatedValues.costo === null || updatedValues.costo === '') {
@@ -91,6 +118,11 @@ export const updateBien = async (req, res, sql) => {
             usuario_asignado = ${updatedValues.usuarioAsignado},
             estado = ${updatedValues.estado},
             ubicacion = ${updatedValues.ubicacion},
+            especificaciones = ${transaction.json(updatedValues.especificaciones || {})},
+            imagen_url = ${updatedValues.imagenUrl},
+            codigo_patrimonial = ${updatedValues.codigoPatrimonial},
+            direccion_mac = ${updatedValues.direccionMac},
+            orden_compra = ${updatedValues.ordenCompra},
             updated_at = NOW()
         WHERE id = ${id}
         RETURNING *
