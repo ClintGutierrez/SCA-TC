@@ -1,5 +1,28 @@
 import { useState } from 'react';
 import * as api from '../services/api';
+import RegistrarBien from './RegistrarBien';
+import { TIPOS } from '../utils/camposPorTipo';
+import { calcularGarantia } from '../utils/garantia';
+
+const ESTILO_GARANTIA = {
+  vigente: 'bg-green-100 text-green-700',
+  vencida: 'bg-red-100 text-red-700',
+  sin_garantia: 'bg-slate-100 text-slate-600',
+};
+
+function Garantia({ bien }) {
+  const garantia = calcularGarantia(bien.fecha_adquisicion, bien.garantia_anios);
+  if (!garantia) return <span className="text-slate-400 text-xs">Sin datos</span>;
+
+  return (
+    <div>
+      <span className={`inline-block px-3 py-1 rounded-full text-xs font-bold ${ESTILO_GARANTIA[garantia.estado]}`}>
+        {garantia.etiqueta}
+      </span>
+      {garantia.detalle && <p className="text-xs text-slate-500 mt-1">{garantia.detalle}</p>}
+    </div>
+  );
+}
 
 export default function InventarioList({ bienes, onRefresh, canCreate, canEdit, canDelete }) {
   const [showForm, setShowForm] = useState(false);
@@ -40,15 +63,16 @@ export default function InventarioList({ bienes, onRefresh, canCreate, canEdit, 
     setShowForm(false);
   };
 
+  const abrirRegistro = () => {
+    setEditingId(null);
+    setShowForm(true);
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     try {
-      if (editingId) {
-        await api.updateBien(editingId, formData);
-      } else {
-        await api.createBien(formData);
-      }
+      await api.updateBien(editingId, formData);
       resetForm();
       onRefresh();
     } catch (error) {
@@ -101,7 +125,7 @@ export default function InventarioList({ bienes, onRefresh, canCreate, canEdit, 
         </div>
         {canCreate ? (
           <button
-            onClick={() => setShowForm(!showForm)}
+            onClick={abrirRegistro}
             className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white px-6 py-3 rounded-lg font-semibold shadow-md hover:shadow-lg transition-all duration-200 flex items-center gap-2"
             disabled={loading}
           >
@@ -114,12 +138,15 @@ export default function InventarioList({ bienes, onRefresh, canCreate, canEdit, 
         )}
       </div>
 
-      {/* Formulario */}
-      {showForm && canCreate && (
+      {/* Registro (CU-03) */}
+      {showForm && canCreate && !editingId && (
+        <RegistrarBien onSaved={onRefresh} onCancel={() => setShowForm(false)} />
+      )}
+
+      {/* Edición */}
+      {showForm && canCreate && editingId && (
         <div className="bg-white rounded-xl shadow-md border border-slate-200 p-6 overflow-hidden">
-          <h3 className="text-xl font-bold text-slate-900 mb-6">
-            {editingId ? 'Editar Bien' : 'Registrar Nuevo Bien'}
-          </h3>
+          <h3 className="text-xl font-bold text-slate-900 mb-6">Editar Bien</h3>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
@@ -144,12 +171,9 @@ export default function InventarioList({ bienes, onRefresh, canCreate, canEdit, 
                   required
                 >
                   <option value="">Selecciona tipo</option>
-                  <option value="computadora">Computadora</option>
-                  <option value="laptop">Laptop</option>
-                  <option value="impresora">Impresora</option>
-                  <option value="servidor">Servidor</option>
-                  <option value="monitor">Monitor</option>
-                  <option value="otro">Otro</option>
+                  {TIPOS.map((tipo) => (
+                    <option key={tipo.value} value={tipo.value}>{tipo.label}</option>
+                  ))}
                 </select>
               </div>
             </div>
@@ -285,6 +309,7 @@ export default function InventarioList({ bienes, onRefresh, canCreate, canEdit, 
                 <th className="px-6 py-4 text-left font-semibold">Marca/Modelo</th>
                 <th className="px-6 py-4 text-right font-semibold">Costo</th>
                 <th className="px-6 py-4 text-left font-semibold">Asignado a</th>
+                <th className="px-6 py-4 text-left font-semibold">Garantía</th>
                 <th className="px-6 py-4 text-center font-semibold">Estado</th>
                 <th className="px-6 py-4 text-center font-semibold">Acciones</th>
               </tr>
@@ -303,10 +328,13 @@ export default function InventarioList({ bienes, onRefresh, canCreate, canEdit, 
                       {bien.marca || '-'} {bien.modelo ? `/ ${bien.modelo}` : ''}
                     </td>
                     <td className="px-6 py-4 text-right font-semibold text-slate-900">
-                      S/ {bien.costo?.toFixed(2) || '0.00'}
+                      S/ {Number(bien.costo || 0).toFixed(2)}
                     </td>
                     <td className="px-6 py-4 text-slate-600">
                       {bien.usuario_asignado || <span className="text-slate-400">Sin asignar</span>}
+                    </td>
+                    <td className="px-6 py-4">
+                      <Garantia bien={bien} />
                     </td>
                     <td className="px-6 py-4 text-center">
                       <span className={`inline-block px-3 py-1 rounded-full text-xs font-bold ${
@@ -343,7 +371,7 @@ export default function InventarioList({ bienes, onRefresh, canCreate, canEdit, 
                 ))
               ) : (
                 <tr>
-                  <td colSpan="7" className="px-6 py-8 text-center text-slate-500">
+                  <td colSpan="8" className="px-6 py-8 text-center text-slate-500">
                     <span className="text-2xl">📭</span>
                     <p className="mt-2">No hay bienes registrados</p>
                   </td>

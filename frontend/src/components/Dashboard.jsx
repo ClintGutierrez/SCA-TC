@@ -34,7 +34,7 @@ export default function Dashboard({ bienes, currentUser }) {
     },
     {
       title: 'Valor Total',
-      value: `S/ ${valorTotal.toFixed(2)}`,
+      value: `S/ ${Number(valorTotal || 0).toFixed(2)}`,
       icon: '💰',
       accent: 'from-violet-500 to-fuchsia-400',
       helper: 'Valor patrimonial',
