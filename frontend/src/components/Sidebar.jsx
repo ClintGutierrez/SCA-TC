@@ -2,9 +2,11 @@ export default function Sidebar({ isOpen, onViewChange, currentView, onCloseSide
   const allMenuItems = [
     { id: 'dashboard', icon: '📊', label: 'Dashboard', description: 'Resumen ejecutivo', roles: ['administrador', 'jefatura', 'tecnico'] },
     { id: 'inventario', icon: '💻', label: 'Inventario', description: 'Gestión de bienes', roles: ['administrador', 'jefatura', 'tecnico'] },
+    { id: 'bajas', icon: '📤', label: 'Bajas', description: 'Retiro con evidencias', roles: ['administrador', 'jefatura', 'auditor'] },
     { id: 'mantenimiento', icon: '🔧', label: 'Mantenimiento', description: 'Control de servicios', roles: ['administrador', 'jefatura', 'tecnico'] },
     { id: 'reportes', icon: '📈', label: 'Reportes', description: 'Análisis y reportes', roles: ['administrador', 'jefatura', 'tecnico'] },
     { id: 'usuarios', icon: '👥', label: 'Usuarios', description: 'Accesos y roles', roles: ['administrador'] },
+    { id: 'personal', icon: '🧑‍💼', label: 'Personal', description: 'Directorio institucional', roles: ['administrador', 'jefatura', 'auditor'] },
     { id: 'auditoria', icon: '🛡️', label: 'Auditoría', description: 'Log de acciones', roles: ['administrador', 'auditor'] },
   ];
 
@@ -66,10 +68,10 @@ export default function Sidebar({ isOpen, onViewChange, currentView, onCloseSide
 
         <div className="px-4 py-4">
           <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.3em] text-slate-500">Herramientas</p>
-          <button className="flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-left text-sm text-slate-300 transition hover:bg-white/8 hover:text-white">
+          {role === 'administrador' && <button onClick={() => handleMenuClick('configuracion')} className={`flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-left text-sm transition hover:bg-white/8 hover:text-white ${currentView === 'configuracion' ? 'bg-white text-slate-950' : 'text-slate-300'}`}>
             <span>⚙️</span>
             <span>Configuración</span>
-          </button>
+          </button>}
         </div>
 
         <div className="border-t border-white/10 bg-white/5 p-4">

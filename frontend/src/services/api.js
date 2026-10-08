@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
 const apiClient = axios.create({
   baseURL: `${API_URL}/api`,
@@ -93,12 +93,26 @@ export const createUsuario = (data) => apiClient.post('/usuarios', data);
 export const updateUsuario = (id, data) => apiClient.put(`/usuarios/${id}`, data);
 export const disableUsuario = (id) => apiClient.delete(`/usuarios/${id}`);
 
+// Personal de la institución
+export const getPersonal = () => apiClient.get('/personal');
+export const getPersonalById = (id) => apiClient.get(`/personal/${id}`);
+export const createPersonal = (data) => apiClient.post('/personal', data);
+export const updatePersonal = (id, data) => apiClient.put(`/personal/${id}`, data);
+export const disablePersonal = (id) => apiClient.delete(`/personal/${id}`);
+export const getConfiguracion = () => apiClient.get('/configuracion');
+export const saveConfiguracion = (data) => apiClient.put('/configuracion', data);
+
 // Bienes
 export const getBienes = () => apiClient.get('/bienes');
 export const getBienById = (id) => apiClient.get(`/bienes/${id}`);
 export const createBien = (data) => apiClient.post('/bienes', data);
 export const updateBien = (id, data) => apiClient.put(`/bienes/${id}`, data);
 export const deleteBien = (id) => apiClient.delete(`/bienes/${id}`);
+export const getHistorialBien = (id) => apiClient.get(`/bienes/${id}/historial`);
+export const createBaja = (bienId, data) => apiClient.post(`/bajas/${bienId}`, data, {
+  headers: { 'Content-Type': 'multipart/form-data' },
+});
+export const getBajas = () => apiClient.get('/bajas');
 
 // Mantenimiento
 export const getMantenimiento = () => apiClient.get('/mantenimiento');

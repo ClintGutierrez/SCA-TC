@@ -11,6 +11,7 @@ Sistema full-stack para la gestión integral de bienes informáticos, desarrolla
 - ✅ **Control de Depreciación**: Cálculo automático de depreciación de activos
 - ✅ **Gestión de Mantenimiento**: Registro y seguimiento de mantenimientos y repotenciaciones
 - ✅ **Asignación de Equipos**: Control de asignación de bienes a usuarios
+- ✅ **Gestión de Personal**: Directorio institucional independiente de las cuentas de acceso
 - ✅ **Reportes para Auditoría**: Generación de reportes confiables para control y supervisión
 - ✅ **Exportación de Datos**: Exportación a CSV para análisis externo
 - ✅ **Dashboard**: Estadísticas en tiempo real
@@ -29,7 +30,7 @@ proyecto TPG/
 ├── backend/                    # API REST con Node.js + Express
 │   ├── server.js              # Servidor principal
 │   ├── package.json           # Dependencias backend
-│   ├── .env.example           # Variables de entorno
+│   ├── .env                   # Conexión privada a Supabase (no versionada)
 │   └── migrations/
 │       └── schema.sql         # Esquema de base de datos
 ├── frontend/                   # Aplicación React + Tailwind
@@ -84,12 +85,12 @@ cd backend
 npm install
 ```
 
-3. Configura las variables de entorno (copia .env.example a .env):
+3. Configura el archivo privado `backend/.env` con la conexión real a Supabase:
 ```bash
-cp .env.example .env
+cd backend
 ```
 
-4. Edita `.env` con tus credenciales de PostgreSQL:
+4. Edita `backend/.env` con tus credenciales de Supabase:
 ```
 DB_HOST=localhost
 DB_PORT=5432
@@ -195,15 +196,23 @@ La aplicación estará disponible en `http://localhost:3000`
 - Tipos de mantenimiento
 
 **usuarios**
-- Personal que usa los equipos
-- Departamentos y roles
+- Cuentas que pueden iniciar sesión en el sistema
+- Roles, credenciales y permisos
+
+**personal**
+- Nombre, apellido y DNI
+- Correo institucional y número celular
+- Régimen laboral
+- Oficina, área, sede y piso
+- Estado activo o inactivo
 
 **depreciacion**
 - Cálculo de depreciación por bien
 - Valores históricos
 
 **asignaciones**
-- Asignación de equipos a usuarios
+- Historial de asignaciones y devoluciones
+- Relación opcional con el personal institucional
 - Fechas de asignación y devolución
 
 ## 🔌 API Endpoints

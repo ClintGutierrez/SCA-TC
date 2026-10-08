@@ -10,9 +10,11 @@ import { createMantenimientoRouter } from './routes/mantenimiento.js';
 import { createDepreciacionRouter } from './routes/depreciacion.js';
 import { createReportesRouter } from './routes/reportes.js';
 import { createUsuariosRouter } from './routes/usuarios.js';
+import { createPersonalRouter } from './routes/personal.js';
+import { createConfiguracionRouter } from './routes/configuracion.js';
 import { createAuditoriaRouter } from './routes/auditoria.js';
+import { createBajasRouter } from './routes/bajas.js';
 import { ensureAuthColumns, seedDefaultUsers } from './utils/auth.js';
-import { createAuditMiddleware } from './middleware/audit.js';
 
 dotenv.config();
 
@@ -60,16 +62,17 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'OK', message: 'Servidor funcionando correctamente' });
 });
 
-app.use('/api', createAuditMiddleware(sql));
-
 // Registrar rutas
 app.use('/api/auth', createAuthRouter(sql));
 app.use('/api/usuarios', createUsuariosRouter(sql));
+app.use('/api/personal', createPersonalRouter(sql));
+app.use('/api/configuracion', createConfiguracionRouter(sql));
 app.use('/api/bienes', createBienesRouter(sql));
 app.use('/api/mantenimiento', createMantenimientoRouter(sql));
 app.use('/api/depreciacion', createDepreciacionRouter(sql));
 app.use('/api/reportes', createReportesRouter(sql));
 app.use('/api/auditoria', createAuditoriaRouter(sql));
+app.use('/api/bajas', createBajasRouter(sql));
 
 // Manejo de errores global
 app.use((err, req, res, next) => {
