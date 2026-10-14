@@ -199,7 +199,8 @@ export default function Reportes() {
             <table className="w-full">
               <thead className="bg-gray-100">
                 <tr>
-                  <th className="px-6 py-3 text-left">Usuario</th>
+                  <th className="px-6 py-3 text-left">Personal responsable</th>
+                  <th className="px-6 py-3 text-left">DNI</th>
                   <th className="px-6 py-3 text-left">Cantidad de Equipos</th>
                   <th className="px-6 py-3 text-left">Equipos</th>
                 </tr>
@@ -207,7 +208,8 @@ export default function Reportes() {
               <tbody>
                 {reporteAsignaciones.map((item, idx) => (
                   <tr key={idx} className="border-t hover:bg-gray-50">
-                    <td className="px-6 py-3">{item.usuario}</td>
+                    <td className="px-6 py-3">{item.personal}</td>
+                    <td className="px-6 py-3">{item.dni || '-'}</td>
                     <td className="px-6 py-3">{item.cantidad_equipos || 0}</td>
                     <td className="px-6 py-3 max-w-xs truncate">{item.equipos || '-'}</td>
                   </tr>
@@ -220,4 +222,3 @@ export default function Reportes() {
     </div>
   );
 }
-

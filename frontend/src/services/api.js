@@ -114,6 +114,11 @@ export const createBaja = (bienId, data) => apiClient.post(`/bajas/${bienId}`, d
 });
 export const getBajas = () => apiClient.get('/bajas');
 
+// Asignaciones
+export const getAsignaciones = (params = {}) => apiClient.get('/asignaciones', { params });
+export const createAsignacion = (data) => apiClient.post('/asignaciones', data);
+export const devolverAsignacion = (id, data) => apiClient.post(`/asignaciones/${id}/devolucion`, data);
+
 // Mantenimiento
 export const getMantenimiento = () => apiClient.get('/mantenimiento');
 export const getMantenimientoPorBien = (bienId) => apiClient.get(`/mantenimiento/bien/${bienId}`);

@@ -14,6 +14,7 @@ import Personal from './components/Personal';
 import Configuracion from './components/Configuracion';
 import Auditoria from './components/Auditoria';
 import Bajas from './components/Bajas';
+import Asignaciones from './components/Asignaciones';
 
 const rolePermissions = {
   administrador: {
@@ -216,6 +217,8 @@ function App() {
         );
       case 'bajas':
         return <Bajas bienes={bienes} canCreate={['administrador', 'jefatura'].includes(role)} />;
+      case 'asignaciones':
+        return <Asignaciones bienes={bienes} personal={personal} canManage={['administrador', 'jefatura'].includes(role)} />;
       case 'reportes':
         return <Reportes currentUser={currentUser} />;
       case 'usuarios':
@@ -267,6 +270,10 @@ function App() {
     bajas: {
       title: 'Bajas de bienes',
       description: 'Retiro patrimonial con evidencias fotográficas',
+    },
+    asignaciones: {
+      title: 'Asignaciones',
+      description: 'Control de entrega, responsables y devoluciones de bienes',
     },
   };
 

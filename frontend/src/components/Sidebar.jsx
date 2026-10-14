@@ -3,6 +3,7 @@ export default function Sidebar({ isOpen, onViewChange, currentView, onCloseSide
     { id: 'dashboard', icon: '📊', label: 'Dashboard', description: 'Resumen ejecutivo', roles: ['administrador', 'jefatura', 'tecnico'] },
     { id: 'inventario', icon: '💻', label: 'Inventario', description: 'Gestión de bienes', roles: ['administrador', 'jefatura', 'tecnico'] },
     { id: 'bajas', icon: '📤', label: 'Bajas', description: 'Retiro con evidencias', roles: ['administrador', 'jefatura', 'auditor'] },
+    { id: 'asignaciones', icon: '↔', label: 'Asignaciones', description: 'Responsables y devoluciones', roles: ['administrador', 'jefatura', 'tecnico', 'auditor'] },
     { id: 'mantenimiento', icon: '🔧', label: 'Mantenimiento', description: 'Control de servicios', roles: ['administrador', 'jefatura', 'tecnico'] },
     { id: 'reportes', icon: '📈', label: 'Reportes', description: 'Análisis y reportes', roles: ['administrador', 'jefatura', 'tecnico'] },
     { id: 'usuarios', icon: '👥', label: 'Usuarios', description: 'Accesos y roles', roles: ['administrador'] },
