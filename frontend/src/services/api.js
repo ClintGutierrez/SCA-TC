@@ -118,6 +118,11 @@ export const getBajas = () => apiClient.get('/bajas');
 export const getAsignaciones = (params = {}) => apiClient.get('/asignaciones', { params });
 export const createAsignacion = (data) => apiClient.post('/asignaciones', data);
 export const devolverAsignacion = (id, data) => apiClient.post(`/asignaciones/${id}/devolucion`, data);
+export const getMovimientos = (params = {}) => apiClient.get('/movimientos', { params });
+export const createMovimiento = (data) => apiClient.post('/movimientos', data);
+export const resolverMovimiento = (id, data) => apiClient.post(`/movimientos/${id}/aprobacion`, data);
+export const getMovimientoDocumento = (id) => apiClient.get(`/movimientos/${id}/documento`, { responseType: 'text' });
+export const registrarRetornoPrestamo = (id, data) => apiClient.post(`/movimientos/${id}/retorno`, data);
 
 // Mantenimiento
 export const getMantenimiento = () => apiClient.get('/mantenimiento');

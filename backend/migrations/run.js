@@ -35,6 +35,9 @@ async function runMigrations() {
       const assignmentMigrationPath = path.join(path.dirname(fileURLToPath(import.meta.url)), '20261013_asignaciones.sql');
       const assignmentMigration = fs.readFileSync(assignmentMigrationPath, 'utf8').replace(/^\uFEFF/, '');
       await transaction.unsafe(assignmentMigration);
+      const movementsMigrationPath = path.join(path.dirname(fileURLToPath(import.meta.url)), '20261013_movimientos_patrimoniales.sql');
+      const movementsMigration = fs.readFileSync(movementsMigrationPath, 'utf8').replace(/^\uFEFF/, '');
+      await transaction.unsafe(movementsMigration);
       await transaction.unsafe(`ALTER TABLE IF EXISTS usuarios ADD COLUMN IF NOT EXISTS password_hash TEXT`);
       await transaction.unsafe(`ALTER TABLE IF EXISTS usuarios ADD COLUMN IF NOT EXISTS last_login TIMESTAMP`);
       await transaction.unsafe(`ALTER TABLE IF EXISTS usuarios ADD COLUMN IF NOT EXISTS activo_login BOOLEAN DEFAULT TRUE`);
@@ -43,7 +46,6 @@ async function runMigrations() {
     console.log('✓ Migraciones ejecutadas correctamente');
   } catch (error) {
     console.error('✗ Error en migraciones:', error);
-    process.exitCode = 1;
     process.exitCode = 1;
   } finally {
     await sql.end();

@@ -9,6 +9,8 @@ const PERSONAL_FIELDS = [
   'area',
   'sede',
   'piso',
+  'jefe_inmediato',
+  'correo_jefe',
   'estado',
 ];
 const REGIMENES_LABORALES = new Set(['Practicante', 'Locador de servicios', 'CAS', 'CAP', 'Personal de confianza', 'Servir']);
@@ -21,6 +23,8 @@ const normalizePayload = (body = {}) => {
   payload.estado = payload.estado || 'activo';
   payload.dni = payload.dni?.replace(/\s/g, '');
   payload.correo_institucional = payload.correo_institucional?.toLowerCase();
+  payload.correo_jefe = payload.correo_jefe?.toLowerCase() || null;
+  payload.jefe_inmediato = payload.jefe_inmediato ? Number(payload.jefe_inmediato) : null;
   return payload;
 };
 
@@ -47,13 +51,40 @@ const validatePayload = (payload) => {
   if (!['activo', 'inactivo'].includes(payload.estado)) {
     return 'El estado del personal no es válido';
   }
+  if (payload.correo_jefe && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(payload.correo_jefe)) {
+    return 'El correo del jefe inmediato no tiene un formato válido';
+  }
+  if (payload.jefe_inmediato !== null && (!Number.isInteger(payload.jefe_inmediato) || payload.jefe_inmediato < 1)) {
+    return 'El jefe inmediato seleccionado no es válido';
+  }
   return null;
 };
 
 const selectFields = `
   id, nombre, apellido, dni, correo_institucional, numero_celular,
-  regimen_laboral, oficina, area, sede, piso, estado, created_at, updated_at
+  regimen_laboral, oficina, area, sede, piso, jefe_inmediato, correo_jefe,
+  (SELECT CONCAT(jefe.apellido, ', ', jefe.nombre) FROM personal jefe WHERE jefe.id = personal.jefe_inmediato) AS jefe_inmediato_nombre,
+  estado, created_at, updated_at
 `;
+
+const validateManager = async (payload, sql, currentId = null) => {
+  if (!payload.jefe_inmediato && !payload.correo_jefe) return null;
+  if (!payload.jefe_inmediato || !payload.correo_jefe) {
+    return 'Registra tanto el jefe inmediato como su correo institucional';
+  }
+  if (currentId && Number(currentId) === payload.jefe_inmediato) {
+    return 'El personal no puede ser su propio jefe inmediato';
+  }
+  const [manager] = await sql`
+    SELECT id, correo_institucional FROM personal
+    WHERE id = ${payload.jefe_inmediato} AND estado = 'activo'
+  `;
+  if (!manager) return 'El jefe inmediato debe existir y estar activo en Personal';
+  if (manager.correo_institucional.toLowerCase() !== payload.correo_jefe) {
+    return 'El correo del jefe debe coincidir con el correo institucional registrado en Personal';
+  }
+  return null;
+};
 
 export const getPersonal = async (req, res, sql) => {
   try {
@@ -84,6 +115,8 @@ export const createPersonal = async (req, res, sql) => {
     const payload = normalizePayload(req.body);
     const validationError = validatePayload(payload);
     if (validationError) return res.status(400).json({ error: validationError });
+    const managerError = await validateManager(payload, sql);
+    if (managerError) return res.status(400).json({ error: managerError });
 
     const duplicate = await sql`
       SELECT id FROM personal
@@ -95,14 +128,15 @@ export const createPersonal = async (req, res, sql) => {
     const rows = await sql`
       INSERT INTO personal (
         nombre, apellido, dni, correo_institucional, numero_celular,
-        regimen_laboral, oficina, area, sede, piso, estado
+        regimen_laboral, oficina, area, sede, piso, jefe_inmediato, correo_jefe, estado
       ) VALUES (
         ${payload.nombre}, ${payload.apellido}, ${payload.dni}, ${payload.correo_institucional},
         ${payload.numero_celular || null}, ${payload.regimen_laboral}, ${payload.oficina || null},
-        ${payload.area || null}, ${payload.sede || null}, ${payload.piso || null}, ${payload.estado}
+        ${payload.area || null}, ${payload.sede || null}, ${payload.piso || null},
+        ${payload.jefe_inmediato}, ${payload.correo_jefe}, ${payload.estado}
       )
       RETURNING id, nombre, apellido, dni, correo_institucional, numero_celular,
-        regimen_laboral, oficina, area, sede, piso, estado, created_at, updated_at
+        regimen_laboral, oficina, area, sede, piso, jefe_inmediato, correo_jefe, estado, created_at, updated_at
     `;
     res.status(201).json(rows[0]);
   } catch (error) {
@@ -116,6 +150,8 @@ export const updatePersonal = async (req, res, sql) => {
     const payload = normalizePayload(req.body);
     const validationError = validatePayload(payload);
     if (validationError) return res.status(400).json({ error: validationError });
+    const managerError = await validateManager(payload, sql, req.params.id);
+    if (managerError) return res.status(400).json({ error: managerError });
 
     const duplicate = await sql`
       SELECT id FROM personal
@@ -131,10 +167,11 @@ export const updatePersonal = async (req, res, sql) => {
           correo_institucional = ${payload.correo_institucional}, numero_celular = ${payload.numero_celular || null},
           regimen_laboral = ${payload.regimen_laboral}, oficina = ${payload.oficina || null},
           area = ${payload.area || null}, sede = ${payload.sede || null}, piso = ${payload.piso || null},
+          jefe_inmediato = ${payload.jefe_inmediato}, correo_jefe = ${payload.correo_jefe},
           estado = ${payload.estado}, updated_at = CURRENT_TIMESTAMP
       WHERE id = ${req.params.id}
       RETURNING id, nombre, apellido, dni, correo_institucional, numero_celular,
-        regimen_laboral, oficina, area, sede, piso, estado, created_at, updated_at
+        regimen_laboral, oficina, area, sede, piso, jefe_inmediato, correo_jefe, estado, created_at, updated_at
     `;
     if (rows.length === 0) return res.status(404).json({ error: 'Personal no encontrado' });
     res.json(rows[0]);
@@ -150,7 +187,7 @@ export const disablePersonal = async (req, res, sql) => {
       UPDATE personal SET estado = 'inactivo', updated_at = CURRENT_TIMESTAMP
       WHERE id = ${req.params.id}
       RETURNING id, nombre, apellido, dni, correo_institucional, numero_celular,
-        regimen_laboral, oficina, area, sede, piso, estado, created_at, updated_at
+        regimen_laboral, oficina, area, sede, piso, jefe_inmediato, correo_jefe, estado, created_at, updated_at
     `;
     if (rows.length === 0) return res.status(404).json({ error: 'Personal no encontrado' });
     res.json({ message: 'Personal deshabilitado correctamente', personal: rows[0] });

@@ -3,7 +3,7 @@ import * as api from '../services/api';
 
 const emptyForm = {
   nombre: '', apellido: '', dni: '', correo_institucional: '', numero_celular: '',
-  regimen_laboral: '', oficina: '', area: '', sede: '', piso: '', estado: 'activo',
+  regimen_laboral: '', oficina: '', area: '', sede: '', piso: '', jefe_inmediato: '', correo_jefe: '', estado: 'activo',
 };
 const inputClass = 'mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:border-blue-300 focus:bg-white focus:ring-4 focus:ring-blue-100';
 const REGIMENES_LABORALES = ['Practicante', 'Locador de servicios', 'CAS', 'CAP', 'Personal de confianza', 'Servir'];
@@ -47,11 +47,20 @@ export default function Personal({ personal: initialPersonal = [], onRefresh, cu
     if (!query) return personal;
     return personal.filter((item) => [
       item.nombre, item.apellido, item.dni, item.correo_institucional, item.regimen_laboral,
-      item.oficina, item.area, item.sede, item.piso,
+      item.oficina, item.area, item.sede, item.piso, item.correo_jefe,
     ].some((value) => String(value || '').toLowerCase().includes(query)));
   }, [personal, search]);
 
-  const changeField = (event) => setFormData((previous) => ({ ...previous, [event.target.name]: event.target.value }));
+  const changeField = (event) => {
+    const { name, value } = event.target;
+    setFormData((previous) => {
+      if (name === 'jefe_inmediato') {
+        const manager = personal.find((person) => String(person.id) === value);
+        return { ...previous, jefe_inmediato: value, correo_jefe: manager?.correo_institucional || '' };
+      }
+      return { ...previous, [name]: value };
+    });
+  };
   const resetForm = () => { setFormData(emptyForm); setEditingId(null); setShowForm(false); };
   const edit = (item) => {
     setEditingId(item.id);
@@ -109,6 +118,19 @@ export default function Personal({ personal: initialPersonal = [], onRefresh, cu
               </label>
             ))}
             <label className="block">
+              <span className="text-sm font-medium text-slate-700">Jefe inmediato superior</span>
+              <select name="jefe_inmediato" value={formData.jefe_inmediato} onChange={changeField} className={inputClass}>
+                <option value="">Selecciona al jefe inmediato</option>
+                {personal.filter((person) => person.estado === 'activo' && String(person.id) !== String(editingId))
+                  .map((person) => <option key={person.id} value={person.id}>{person.apellido}, {person.nombre} · {person.correo_institucional}</option>)}
+              </select>
+            </label>
+            <label className="block">
+              <span className="text-sm font-medium text-slate-700">Correo del jefe inmediato</span>
+              <input type="email" name="correo_jefe" value={formData.correo_jefe} onChange={changeField} className={inputClass}
+                placeholder="jefe@tc.gob.pe" />
+            </label>
+            <label className="block">
               <span className="text-sm font-medium text-slate-700">Régimen laboral</span>
               <select name="regimen_laboral" value={formData.regimen_laboral} onChange={changeField} className={inputClass} required>
                 <option value="">Selecciona un régimen</option>
@@ -129,7 +151,7 @@ export default function Personal({ personal: initialPersonal = [], onRefresh, cu
       )}
       <div className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm">
         <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div><h3 className="text-xl font-semibold text-slate-950">Personal registrado</h3><p className="text-sm text-slate-500">{filteredPersonal.length} de {personal.length} registros</p></div><input aria-label="Buscar personal" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar por nombre, DNI, área o sede" className="rounded-2xl border border-slate-200 px-4 py-3 text-sm sm:w-80" /></div>
-        {loading ? <p className="py-8 text-center text-sm text-slate-500">Cargando personal...</p> : <div className="overflow-x-auto"><table className="min-w-full text-left text-sm"><thead><tr className="border-b border-slate-200 text-xs uppercase tracking-wide text-slate-500"><th className="px-3 py-3">Nombre completo</th><th className="px-3 py-3">DNI</th><th className="px-3 py-3">Correo</th><th className="px-3 py-3">Régimen</th><th className="px-3 py-3">Ubicación</th><th className="px-3 py-3">Estado</th>{canEdit && <th className="px-3 py-3">Acciones</th>}</tr></thead><tbody>{filteredPersonal.map((item) => <tr key={item.id} className="border-b border-slate-100"><td className="px-3 py-4 font-medium text-slate-900">{item.apellido}, {item.nombre}</td><td className="px-3 py-4 text-slate-600">{item.dni}</td><td className="px-3 py-4 text-slate-600">{item.correo_institucional}</td><td className="px-3 py-4 text-slate-600">{item.regimen_laboral}</td><td className="px-3 py-4 text-slate-600">{[item.sede, item.oficina, item.area, item.piso && `Piso ${item.piso}`].filter(Boolean).join(' · ') || 'Sin ubicación'}</td><td className="px-3 py-4"><span className={`rounded-full px-3 py-1 text-xs font-semibold ${item.estado === 'activo' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>{item.estado}</span></td>{canEdit && <td className="px-3 py-4"><div className="flex gap-2"><button type="button" onClick={() => edit(item)} className="font-semibold text-blue-600">Editar</button>{item.estado === 'activo' && <button type="button" onClick={() => disable(item.id)} className="font-semibold text-rose-600">Deshabilitar</button>}</div></td>}</tr>)}</tbody></table></div>}
+        {loading ? <p className="py-8 text-center text-sm text-slate-500">Cargando personal...</p> : <div className="overflow-x-auto"><table className="min-w-full text-left text-sm"><thead><tr className="border-b border-slate-200 text-xs uppercase tracking-wide text-slate-500"><th className="px-3 py-3">Nombre completo</th><th className="px-3 py-3">DNI</th><th className="px-3 py-3">Correo</th><th className="px-3 py-3">Régimen</th><th className="px-3 py-3">Jefe inmediato</th><th className="px-3 py-3">Ubicación</th><th className="px-3 py-3">Estado</th>{canEdit && <th className="px-3 py-3">Acciones</th>}</tr></thead><tbody>{filteredPersonal.map((item) => <tr key={item.id} className="border-b border-slate-100"><td className="px-3 py-4 font-medium text-slate-900">{item.apellido}, {item.nombre}</td><td className="px-3 py-4 text-slate-600">{item.dni}</td><td className="px-3 py-4 text-slate-600">{item.correo_institucional}</td><td className="px-3 py-4 text-slate-600">{item.regimen_laboral}</td><td className="px-3 py-4 text-slate-600">{item.correo_jefe || 'No registrado'}</td><td className="px-3 py-4 text-slate-600">{[item.sede, item.oficina, item.area, item.piso && `Piso ${item.piso}`].filter(Boolean).join(' · ') || 'Sin ubicación'}</td><td className="px-3 py-4"><span className={`rounded-full px-3 py-1 text-xs font-semibold ${item.estado === 'activo' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>{item.estado}</span></td>{canEdit && <td className="px-3 py-4"><div className="flex gap-2"><button type="button" onClick={() => edit(item)} className="font-semibold text-blue-600">Editar</button>{item.estado === 'activo' && <button type="button" onClick={() => disable(item.id)} className="font-semibold text-rose-600">Deshabilitar</button>}</div></td>}</tr>)}</tbody></table></div>}
       </div>
     </div>
   );

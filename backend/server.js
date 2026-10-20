@@ -16,6 +16,7 @@ import { createConfiguracionRouter } from './routes/configuracion.js';
 import { createAuditoriaRouter } from './routes/auditoria.js';
 import { createBajasRouter } from './routes/bajas.js';
 import { createAsignacionesRouter } from './routes/asignaciones.js';
+import { createMovimientosRouter } from './routes/movimientos.js';
 import { ensureAuthColumns, seedDefaultUsers } from './utils/auth.js';
 import { openapiSpec } from './docs/openapi.js';
 
@@ -81,6 +82,7 @@ app.use('/api/reportes', createReportesRouter(sql));
 app.use('/api/auditoria', createAuditoriaRouter(sql));
 app.use('/api/bajas', createBajasRouter(sql));
 app.use('/api/asignaciones', createAsignacionesRouter(sql));
+app.use('/api/movimientos', createMovimientosRouter(sql));
 
 // Manejo de errores global
 app.use((err, req, res, next) => {

@@ -254,3 +254,20 @@ Para problemas o sugerencias, abre un issue en el repositorio.
 ---
 
 **Última actualización:** Junio 2024
+
+## Movimientos patrimoniales
+
+El módulo de Movimientos centraliza asignaciones, cambios de responsable, retiros y préstamos. CAP, CAS, Personal de confianza y Servir se procesan directamente; para Locador de servicios y Practicante se exige jefe inmediato y correo registrados en Personal, y la solicitud queda pendiente hasta que dicho jefe la autorice. Cada registro genera un documento HTML imprimible desde el historial.
+
+Para el envío automático por correo, configura SMTP únicamente en el entorno privado del backend:
+
+```text
+SMTP_HOST=
+SMTP_PORT=587
+SMTP_SECURE=false
+SMTP_USER=
+SMTP_PASSWORD=
+SMTP_FROM=
+```
+
+Si SMTP no está configurado, el movimiento seguirá registrado y el documento podrá imprimirse; la interfaz indicará que no se pudo enviar.
