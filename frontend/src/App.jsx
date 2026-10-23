@@ -5,10 +5,16 @@ import NavBar from './components/NavBar';
 import Sidebar from './components/Sidebar';
 import Dashboard from './components/Dashboard';
 import InventarioList from './components/InventarioList';
+import RegistrarBien from './components/RegistrarBien';
 import Mantenimiento from './components/Mantenimiento';
 import Reportes from './components/Reportes';
 import Login from './components/Login';
 import Usuarios from './components/Usuarios';
+import Personal from './components/Personal';
+import Configuracion from './components/Configuracion';
+import Auditoria from './components/Auditoria';
+import Bajas from './components/Bajas';
+import Movimientos from './components/Movimientos';
 
 const rolePermissions = {
   administrador: {
@@ -35,6 +41,14 @@ const rolePermissions = {
     canDeleteMaintenance: false,
     canManageUsers: false,
   },
+  auditor: {
+    canCreateAssets: false,
+    canEditAssets: false,
+    canDeleteAssets: false,
+    canCreateMaintenance: false,
+    canDeleteMaintenance: false,
+    canManageUsers: false,
+  },
 };
 
 function App() {
@@ -46,8 +60,9 @@ function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [bienes, setBienes] = useState([]);
   const [usuarios, setUsuarios] = useState([]);
+  const [personal, setPersonal] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [searchValue, setSearchValue] = useState('');
+  const [mostrarRegistro, setMostrarRegistro] = useState(false);
 
   const role = currentUser?.rol || 'tecnico';
   const permissions = rolePermissions[role] || rolePermissions.tecnico;
@@ -63,6 +78,7 @@ function App() {
         }
 
         setCurrentUser(response.data.user);
+        setCurrentView(response.data.user?.rol === 'auditor' ? 'auditoria' : 'dashboard');
       } catch (error) {
         api.clearAuthToken();
         setCurrentUser(null);
@@ -82,14 +98,23 @@ function App() {
     const loadData = async () => {
       setLoading(true);
       try {
-        const bienesResponse = await api.getBienes();
-        setBienes(bienesResponse.data);
+        if (currentUser.rol !== 'auditor') {
+          const bienesResponse = await api.getBienes();
+          setBienes(bienesResponse.data);
+        }
 
         if (permissions.canManageUsers) {
           const usuariosResponse = await api.getUsuarios();
           setUsuarios(usuariosResponse.data);
         } else {
           setUsuarios([]);
+        }
+
+        if (['administrador', 'jefatura', 'auditor'].includes(currentUser.rol)) {
+          const personalResponse = await api.getPersonal();
+          setPersonal(personalResponse.data);
+        } else {
+          setPersonal([]);
         }
       } catch (error) {
         console.error('Error cargando datos iniciales:', error);
@@ -111,6 +136,11 @@ function App() {
     setUsuarios(response.data);
   };
 
+  const fetchPersonal = async () => {
+    const response = await api.getPersonal();
+    setPersonal(response.data);
+  };
+
   const handleLogin = async (email, password) => {
     setAuthLoading(true);
     setAuthError('');
@@ -119,7 +149,7 @@ function App() {
       const response = await api.login({ email, password });
       api.setAuthToken(response.data.token);
       setCurrentUser(response.data.user);
-      setCurrentView('dashboard');
+      setCurrentView(response.data.user?.rol === 'auditor' ? 'auditoria' : 'dashboard');
       setSidebarOpen(false);
     } catch (error) {
       setAuthError(error?.response?.data?.error || 'No se pudo iniciar sesión');
@@ -134,8 +164,15 @@ function App() {
     setCurrentUser(null);
     setBienes([]);
     setUsuarios([]);
+    setPersonal([]);
     setCurrentView('dashboard');
     setSidebarOpen(false);
+  };
+
+  const handleProfileUpdate = async (profile) => {
+    const response = await api.updateProfile(profile);
+    setCurrentUser(response.data.user);
+    return response.data.user;
   };
 
   const renderView = () => {
@@ -144,13 +181,31 @@ function App() {
         return <Dashboard bienes={bienes} currentUser={currentUser} />;
       case 'inventario':
         return (
-          <InventarioList
-            bienes={bienes}
-            onRefresh={fetchBienes}
-            canCreate={permissions.canCreateAssets}
-            canEdit={permissions.canEditAssets}
-            canDelete={permissions.canDeleteAssets}
-          />
+          <div className="space-y-6">
+            {permissions.canCreateAssets && (
+              mostrarRegistro ? (
+                <RegistrarBien
+                  onSaved={() => { fetchBienes(); setMostrarRegistro(false); }}
+                  onCancel={() => setMostrarRegistro(false)}
+                />
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setMostrarRegistro(true)}
+                  className="rounded-lg bg-blue-600 px-5 py-3 font-semibold text-white shadow hover:bg-blue-700"
+                >
+                  ➕ Registrar bien informático
+                </button>
+              )
+            )}
+            <InventarioList
+              bienes={bienes}
+              onRefresh={fetchBienes}
+              canCreate={false}
+              canEdit={permissions.canEditAssets}
+              canDelete={permissions.canDeleteAssets}
+            />
+          </div>
         );
       case 'mantenimiento':
         return (
@@ -160,10 +215,21 @@ function App() {
             canDelete={permissions.canDeleteMaintenance}
           />
         );
+      case 'bajas':
+        return <Bajas bienes={bienes} canCreate={['administrador', 'jefatura'].includes(role)} />;
+      case 'asignaciones':
+      case 'movimientos':
+        return <Movimientos bienes={bienes} personal={personal} canManage={['administrador', 'jefatura'].includes(role)} canApprove={['administrador', 'jefatura'].includes(role)} />;
       case 'reportes':
         return <Reportes currentUser={currentUser} />;
       case 'usuarios':
         return <Usuarios usuarios={usuarios} onRefresh={fetchUsuarios} currentUser={currentUser} />;
+      case 'personal':
+        return <Personal personal={personal} onRefresh={fetchPersonal} currentUser={currentUser} />;
+      case 'configuracion':
+        return <Configuracion />;
+      case 'auditoria':
+        return <Auditoria />;
       default:
         return <Dashboard bienes={bienes} currentUser={currentUser} />;
     }
@@ -189,6 +255,30 @@ function App() {
     usuarios: {
       title: 'Gestión de usuarios',
       description: 'Administración de accesos, roles y credenciales',
+    },
+    personal: {
+      title: 'Personal institucional',
+      description: 'Registro del personal que trabaja en la institución',
+    },
+    configuracion: {
+      title: 'Configuración del sistema',
+      description: 'Parámetros institucionales, catálogos y reglas operativas',
+    },
+    auditoria: {
+      title: 'Log de auditoría',
+      description: 'Trazabilidad de las acciones realizadas en el sistema',
+    },
+    bajas: {
+      title: 'Bajas de bienes',
+      description: 'Retiro patrimonial con evidencias fotográficas',
+    },
+    asignaciones: {
+      title: 'Movimientos patrimoniales',
+      description: 'Asignaciones, cambios, retiros y préstamos de bienes',
+    },
+    movimientos: {
+      title: 'Movimientos patrimoniales',
+      description: 'Asignaciones, cambios, retiros y préstamos de bienes',
     },
   };
 
@@ -216,10 +306,10 @@ function App() {
     <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(37,99,235,0.16),_transparent_28%),linear-gradient(180deg,_#f8fafc_0%,_#eef2ff_100%)] text-slate-900">
       <NavBar
         currentUser={currentUser}
-        onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
+        sidebarOpen={sidebarOpen}
+        onProfileUpdate={handleProfileUpdate}
+        onToggleSidebar={() => setSidebarOpen((open) => !open)}
         onLogout={logout}
-        searchValue={searchValue}
-        onSearchValueChange={setSearchValue}
         title={currentMeta.title}
         description={currentMeta.description}
       />

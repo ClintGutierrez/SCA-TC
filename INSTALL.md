@@ -24,13 +24,13 @@ cd "ruta/del/proyecto"
 
 ### 3. Configurar Variables de Entorno
 
-Copia el archivo `.env.example` a `.env`:
+Configura el archivo privado `backend/.env` con la conexión real a Supabase:
 
 ```bash
-cp .env.example .env
+cd backend
 ```
 
-Edita el archivo `.env` con tus configuraciones (generalmente solo necesitas cambiar la contraseña de PostgreSQL si es diferente).
+Edita `backend/.env` con tus credenciales de Supabase.
 
 Agrega también un `JWT_SECRET` largo y aleatorio, y configura `FRONTEND_URL` si el frontend no corre en `http://localhost:5173`.
 
@@ -125,7 +125,7 @@ npm run frontend:dev
 proyecto TPG/
 ├── backend/          ← Servidor Node.js
 ├── frontend/         ← Aplicación React
-├── .env              ← Variables de entorno (crear desde .env.example)
+├── .env              ← Conexión privada a Supabase (no versionada)
 └── package.json      ← Scripts del proyecto
 ```
 
