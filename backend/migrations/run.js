@@ -27,37 +27,26 @@ async function runMigrations() {
     await sql`SELECT 1`;
     console.log('✓ Conectado a PostgreSQL');
 
-    await sql.unsafe(`ALTER TABLE IF EXISTS bienes_informaticos DROP CONSTRAINT IF EXISTS bienes_informaticos_numero_serie_key;`);
-    await sql.unsafe(`
-      WITH ranked AS (
-        SELECT id,
-               ROW_NUMBER() OVER (PARTITION BY numero_serie ORDER BY id) AS rn
-        FROM bienes_informaticos
-        WHERE numero_serie IS NOT NULL
-      )
-      UPDATE bienes_informaticos
-      SET numero_serie = NULL
-      WHERE id IN (SELECT id FROM ranked WHERE rn > 1);
-    `);
-
     const schemaPath = path.join(path.dirname(fileURLToPath(import.meta.url)), 'schema.sql');
-    const schema = fs.readFileSync(schemaPath, 'utf8');
+    const schema = fs.readFileSync(schemaPath, 'utf8').replace(/^\uFEFF/, '');
 
-    const statements = schema.split(';').filter(stmt => stmt.trim());
-    
-    for (const statement of statements) {
-      if (statement.trim()) {
-        await sql.unsafe(statement);
-      }
-    }
-
-    await sql.unsafe(`ALTER TABLE IF EXISTS usuarios ADD COLUMN IF NOT EXISTS password_hash TEXT`);
-    await sql.unsafe(`ALTER TABLE IF EXISTS usuarios ADD COLUMN IF NOT EXISTS last_login TIMESTAMP`);
-    await sql.unsafe(`ALTER TABLE IF EXISTS usuarios ADD COLUMN IF NOT EXISTS activo_login BOOLEAN DEFAULT TRUE`);
+    await sql.begin(async (transaction) => {
+      await transaction.unsafe(schema);
+      const assignmentMigrationPath = path.join(path.dirname(fileURLToPath(import.meta.url)), '20261013_asignaciones.sql');
+      const assignmentMigration = fs.readFileSync(assignmentMigrationPath, 'utf8').replace(/^\uFEFF/, '');
+      await transaction.unsafe(assignmentMigration);
+      const movementsMigrationPath = path.join(path.dirname(fileURLToPath(import.meta.url)), '20261013_movimientos_patrimoniales.sql');
+      const movementsMigration = fs.readFileSync(movementsMigrationPath, 'utf8').replace(/^\uFEFF/, '');
+      await transaction.unsafe(movementsMigration);
+      await transaction.unsafe(`ALTER TABLE IF EXISTS usuarios ADD COLUMN IF NOT EXISTS password_hash TEXT`);
+      await transaction.unsafe(`ALTER TABLE IF EXISTS usuarios ADD COLUMN IF NOT EXISTS last_login TIMESTAMP`);
+      await transaction.unsafe(`ALTER TABLE IF EXISTS usuarios ADD COLUMN IF NOT EXISTS activo_login BOOLEAN DEFAULT TRUE`);
+    });
 
     console.log('✓ Migraciones ejecutadas correctamente');
   } catch (error) {
     console.error('✗ Error en migraciones:', error);
+    process.exitCode = 1;
   } finally {
     await sql.end();
   }

@@ -38,6 +38,7 @@
   - [x] Tabla `depreciacion`
   - [x] Tabla `asignaciones`
   - [x] Tabla `usuarios`
+  - [x] Tabla `personal`, independiente de las cuentas de acceso
   - [x] Índices para optimización
 - [x] Migraciones automáticas
 
@@ -49,7 +50,6 @@
 - [x] `TESTING.md` - Guía de pruebas
 - [x] `CONTRIBUTORS.md` - Información de contribuidores
 - [x] `.gitignore` - Archivos a ignorar en Git
-- [x] `.env.example` - Variables de entorno
 
 ### Configuración
 - [x] `package.json` raíz - Scripts útiles
@@ -140,7 +140,6 @@ proyecto TPG/
 │   │   └── run.js ✅
 │   ├── server.js ✅
 │   ├── package.json ✅
-│   └── .env.example ✅
 ├── frontend/
 │   ├── src/
 │   │   ├── components/
@@ -163,7 +162,6 @@ proyecto TPG/
 │   ├── package.json ✅
 │   └── index.html ✅
 ├── package.json ✅ (raíz)
-├── .env.example ✅
 ├── .gitignore ✅
 ├── README.md ✅
 ├── INSTALL.md ✅

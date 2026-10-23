@@ -4,15 +4,21 @@ import dotenv from 'dotenv';
 import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
 import postgres from 'postgres';
+import swaggerUi from 'swagger-ui-express';
 import { createAuthRouter } from './routes/auth.js';
 import { createBienesRouter } from './routes/bienes.js';
 import { createMantenimientoRouter } from './routes/mantenimiento.js';
 import { createDepreciacionRouter } from './routes/depreciacion.js';
 import { createReportesRouter } from './routes/reportes.js';
 import { createUsuariosRouter } from './routes/usuarios.js';
+import { createPersonalRouter } from './routes/personal.js';
+import { createConfiguracionRouter } from './routes/configuracion.js';
 import { createAuditoriaRouter } from './routes/auditoria.js';
+import { createBajasRouter } from './routes/bajas.js';
+import { createAsignacionesRouter } from './routes/asignaciones.js';
+import { createMovimientosRouter } from './routes/movimientos.js';
 import { ensureAuthColumns, seedDefaultUsers } from './utils/auth.js';
-import { createAuditMiddleware } from './middleware/audit.js';
+import { openapiSpec } from './docs/openapi.js';
 
 dotenv.config();
 
@@ -60,16 +66,23 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'OK', message: 'Servidor funcionando correctamente' });
 });
 
-app.use('/api', createAuditMiddleware(sql));
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(openapiSpec, {
+  customSiteTitle: 'API Inventario - Swagger',
+}));
 
 // Registrar rutas
 app.use('/api/auth', createAuthRouter(sql));
 app.use('/api/usuarios', createUsuariosRouter(sql));
+app.use('/api/personal', createPersonalRouter(sql));
+app.use('/api/configuracion', createConfiguracionRouter(sql));
 app.use('/api/bienes', createBienesRouter(sql));
 app.use('/api/mantenimiento', createMantenimientoRouter(sql));
 app.use('/api/depreciacion', createDepreciacionRouter(sql));
 app.use('/api/reportes', createReportesRouter(sql));
 app.use('/api/auditoria', createAuditoriaRouter(sql));
+app.use('/api/bajas', createBajasRouter(sql));
+app.use('/api/asignaciones', createAsignacionesRouter(sql));
+app.use('/api/movimientos', createMovimientosRouter(sql));
 
 // Manejo de errores global
 app.use((err, req, res, next) => {

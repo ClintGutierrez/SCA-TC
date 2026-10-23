@@ -9,8 +9,9 @@ export const createBienesRouter = (sql) => {
 
   router.get('/', (req, res) => bienesController.getBienes(req, res, sql));
   router.get('/:id', (req, res) => bienesController.getBienById(req, res, sql));
-  router.post('/', requireRole('administrador', 'jefatura', 'tecnico'), (req, res) => bienesController.createBien(req, res, sql));
+  router.post('/', requireRole('administrador', 'jefatura'), (req, res) => bienesController.createBien(req, res, sql));
   router.put('/:id', requireRole('administrador', 'jefatura'), (req, res) => bienesController.updateBien(req, res, sql));
+  router.get('/:id/historial', requireRole('administrador', 'jefatura', 'tecnico', 'auditor'), (req, res) => bienesController.getHistorialBien(req, res, sql));
   router.delete('/:id', requireRole('administrador'), (req, res) => bienesController.deleteBien(req, res, sql));
 
   return router;
