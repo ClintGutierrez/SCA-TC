@@ -31,9 +31,16 @@ const defaultUsers = [
     rol: 'auditor',
     password: 'Auditor123!',
   },
+  {
+    nombre: 'usuario',
+    email: 'usuario@tc.pe',
+    departamento: 'Atención institucional',
+    rol: 'landing',
+    password: 'usuario123!',
+  },
 ];
 
-export const systemRoles = ['administrador', 'jefatura', 'tecnico', 'auditor'];
+export const systemRoles = ['administrador', 'jefatura', 'tecnico', 'auditor', 'landing'];
 
 const refreshTokenTTLDays = 7;
 

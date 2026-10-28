@@ -12,7 +12,9 @@ export default function Sidebar({ isOpen, onViewChange, currentView, onCloseSide
   ];
 
   const role = currentUser?.rol || 'tecnico';
-  const menuItems = allMenuItems.filter((item) => item.roles.includes(role));
+  const menuItems = role === 'landing'
+    ? [{ id: 'landing', icon: '🏠', label: 'MESA DE SERVICIOS Y GESTIÓN DOCUMENTARIA DE TI', description: 'Inicio del sistema' }]
+    : allMenuItems.filter((item) => item.roles.includes(role));
 
   const handleMenuClick = (viewId) => {
     onViewChange(viewId);
