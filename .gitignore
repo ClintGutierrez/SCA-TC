@@ -41,6 +41,10 @@ temp/
 tmp/
 *.tmp
 
+# PowerShell runtime cache and Office lock files
+/backend/Microsoft/
+~$*
+
 # OS
 Thumbs.db
 .DS_Store

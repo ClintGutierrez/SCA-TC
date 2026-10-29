@@ -1,6 +1,6 @@
 import { useState } from 'react';
 
-export default function Login({ onLogin, loading, error }) {
+export default function Login({ onLogin, onOpenSolicitud, loading, error }) {
   const [formData, setFormData] = useState({
     email: 'admin@tc.pe',
     password: 'Admin123!',
@@ -110,6 +110,16 @@ export default function Login({ onLogin, loading, error }) {
             >
               {loading ? 'Ingresando...' : 'Acceder al sistema'}
             </button>
+
+            {onOpenSolicitud && (
+              <button
+                type="button"
+                onClick={onOpenSolicitud}
+                className="mt-3 flex w-full items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+              >
+                Registrar solicitud de TI
+              </button>
+            )}
 
             <div className="mt-6 rounded-3xl bg-slate-50 p-4 text-sm text-slate-600">
               <p className="font-semibold text-slate-900">Acceso controlado</p>
