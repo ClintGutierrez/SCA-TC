@@ -15,6 +15,12 @@ import Configuracion from './components/Configuracion';
 import Auditoria from './components/Auditoria';
 import Bajas from './components/Bajas';
 import Movimientos from './components/Movimientos';
+import LandingSolicitudTI from './components/LandingSolicitudTI';
+import SolicitudesTI from './components/SolicitudesTI';
+import AlmacenTI from './components/AlmacenTI';
+import NotificacionesTI from './components/NotificacionesTI';
+
+const isSolicitudPathname = (pathname = '') => /^\/(solicitud|solicitudes|landing)(\/|$)/i.test(pathname);
 
 const rolePermissions = {
   administrador: {
@@ -57,6 +63,14 @@ const rolePermissions = {
     canDeleteMaintenance: false,
     canManageUsers: false,
   },
+  almacen: {
+    canCreateAssets: false,
+    canEditAssets: false,
+    canDeleteAssets: false,
+    canCreateMaintenance: false,
+    canDeleteMaintenance: false,
+    canManageUsers: false,
+  },
 };
 
 function App() {
@@ -85,6 +99,40 @@ function App() {
     documento: null,
   });
   const [consultaCodigo, setConsultaCodigo] = useState('');
+  const [showLanding, setShowLanding] = useState(() => isSolicitudPathname(window.location.pathname));
+  const [pedidoSolicitud, setPedidoSolicitud] = useState(null);
+  const [focusSolicitud, setFocusSolicitud] = useState(null);
+  const [focusPedido, setFocusPedido] = useState(null);
+
+  useEffect(() => {
+    const handlePopState = () => {
+      setShowLanding(isSolicitudPathname(window.location.pathname));
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  const openLandingPage = () => {
+    if (!isSolicitudPathname(window.location.pathname)) {
+      window.history.pushState({}, '', '/solicitud');
+    }
+    setShowLanding(true);
+  };
+
+  const closeLandingToAccess = () => {
+    if (isSolicitudPathname(window.location.pathname)) {
+      window.history.pushState({}, '', '/');
+    }
+    setShowLanding(false);
+  };
+
+  const closeLandingToInbox = () => {
+    if (isSolicitudPathname(window.location.pathname)) {
+      window.history.pushState({}, '', '/');
+    }
+    setCurrentView(currentUser?.rol === 'almacen' && !currentUser?.es_ti ? 'almacen_ti' : 'solicitudes_ti');
+    setShowLanding(false);
+  };
 
   const role = currentUser?.rol || 'tecnico';
   const permissions = rolePermissions[role] || rolePermissions.tecnico;
@@ -100,7 +148,15 @@ function App() {
         }
 
         setCurrentUser(response.data.user);
-        setCurrentView('landing');
+        setCurrentView(
+          response.data.user?.rol === 'landing'
+            ? 'landing'
+            : response.data.user?.rol === 'almacen'
+              ? 'almacen_ti'
+              : response.data.user?.rol === 'auditor'
+                ? 'auditoria'
+                : 'dashboard',
+        );
       } catch (error) {
         api.clearAuthToken();
         setCurrentUser(null);
@@ -128,7 +184,7 @@ function App() {
     const loadData = async () => {
       setLoading(true);
       try {
-        if (currentUser.rol !== 'auditor') {
+        if (!['auditor','almacen'].includes(currentUser.rol)) {
           const bienesResponse = await api.getBienes();
           setBienes(bienesResponse.data);
         }
@@ -179,7 +235,15 @@ function App() {
       const response = await api.login({ email, password });
       api.setAuthToken(response.data.token);
       setCurrentUser(response.data.user);
-      setCurrentView('landing');
+      setCurrentView(
+        response.data.user?.rol === 'landing'
+          ? 'landing'
+          : response.data.user?.rol === 'almacen'
+            ? 'almacen_ti'
+            : response.data.user?.rol === 'auditor'
+              ? 'auditoria'
+              : 'dashboard',
+      );
       setSidebarOpen(false);
     } catch (error) {
       setAuthError(error?.response?.data?.error || 'No se pudo iniciar sesión');
@@ -195,6 +259,9 @@ function App() {
     setBienes([]);
     setUsuarios([]);
     setPersonal([]);
+    setFocusSolicitud(null);
+    setFocusPedido(null);
+    setPedidoSolicitud(null);
     setCurrentView('landing');
     setSidebarOpen(false);
   };
@@ -509,6 +576,12 @@ function App() {
         return <Personal personal={personal} onRefresh={fetchPersonal} currentUser={currentUser} />;
       case 'configuracion':
         return <Configuracion />;
+      case 'solicitudes_ti':
+        return <SolicitudesTI currentUser={currentUser} onOpenLanding={openLandingPage} focusId={focusSolicitud} onCreatePedido={(id) => { setPedidoSolicitud(id);setFocusPedido(null);setCurrentView('almacen_ti'); }} />;
+      case 'almacen_ti':
+        return <AlmacenTI currentUser={currentUser} initialSolicitudId={pedidoSolicitud} focusId={focusPedido} bienes={bienes} onOpenInventario={() => { setCurrentView('inventario');setMostrarRegistro(true); }} onOpenMovimientos={() => setCurrentView('movimientos')} />;
+      case 'notificaciones_ti':
+        return <NotificacionesTI onOpen={(entity,id) => { if(entity === 'pedido') { setFocusPedido(id);setPedidoSolicitud(null);setCurrentView('almacen_ti'); } else { setFocusSolicitud(id);setCurrentView('solicitudes_ti'); } }} />;
       case 'auditoria':
         return <Auditoria />;
       default:
@@ -520,6 +593,18 @@ function App() {
     landing: {
       title: 'MESA DE SERVICIOS Y GESTIÓN DOCUMENTARIA DE TI',
       description: 'Inicio general del sistema',
+    },
+    almacen_ti: {
+      title: 'Pedidos y Almacén',
+      description: 'Llegada de pedidos, derivación y recepción por TI',
+    },
+    notificaciones_ti: {
+      title: 'Notificaciones',
+      description: 'Alertas y seguimiento de solicitudes y pedidos',
+    },
+    solicitudes_ti: {
+      title: 'Solicitudes de TI',
+      description: 'Bandeja de requerimientos recibidos desde el formulario público con sustento oficial',
     },
     dashboard: {
       title: 'Dashboard ejecutivo',
@@ -571,6 +656,16 @@ function App() {
 
   const logout = useMemo(() => handleLogout, []);
 
+  if (showLanding) {
+    return (
+      <LandingSolicitudTI
+        currentUser={currentUser}
+        onGoToAccess={closeLandingToAccess}
+        onGoToPanelInbox={closeLandingToInbox}
+      />
+    );
+  }
+
   if (!authReady) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-950 text-white">
@@ -584,7 +679,7 @@ function App() {
   }
 
   if (!currentUser) {
-    return <Login onLogin={handleLogin} loading={authLoading} error={authError} />;
+    return <Login onLogin={handleLogin} onOpenSolicitud={openLandingPage} loading={authLoading} error={authError} />;
   }
 
   return (

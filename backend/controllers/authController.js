@@ -117,7 +117,7 @@ export const refresh = async (req, res, sql) => {
 
     const tokenHash = hashToken(refreshToken);
     const sessions = await sql`
-      SELECT s.id, s.user_id, s.expires_at, s.revoked_at, u.id AS user_id, u.nombre, u.email, u.departamento, u.rol, u.estado, u.activo_login, u.last_login, u.created_at
+      SELECT s.id, s.user_id, s.expires_at, s.revoked_at, u.nombre, u.email, u.departamento, u.rol, u.es_ti, u.estado, u.activo_login, u.last_login, u.created_at
       FROM auth_sessions s
       INNER JOIN usuarios u ON u.id = s.user_id
       WHERE s.token_hash = ${tokenHash}
@@ -144,7 +144,8 @@ export const refresh = async (req, res, sql) => {
       return res.status(401).json({ error: 'Sesión inválida o expirada' });
     }
 
-    const newAccessToken = createAuthToken(session);
+    const refreshedUser = { ...session, id: session.user_id };
+    const newAccessToken = createAuthToken(refreshedUser);
     const newRefreshToken = createRefreshToken();
     const newRefreshTokenHash = hashToken(newRefreshToken);
 
@@ -160,7 +161,7 @@ export const refresh = async (req, res, sql) => {
 
     return res.json({
       token: newAccessToken,
-      user: safeUser(session),
+      user: safeUser(refreshedUser),
     });
   } catch (error) {
     return res.status(500).json({ error: error.message });
@@ -248,7 +249,7 @@ export const updateProfile = async (req, res, sql) => {
           departamento = ${normalizedDepartment},
           password_hash = COALESCE(${passwordHash}, password_hash)
       WHERE id = ${req.user.sub}
-      RETURNING id, nombre, email, departamento, rol, estado, activo_login, last_login, created_at
+      RETURNING id, nombre, email, departamento, rol, es_ti, estado, activo_login, last_login, created_at
     `;
 
     if (users.length === 0) {

@@ -1,3 +1,5 @@
+import { gestionTIPaths } from './gestionTI.js';
+
 const secured = (summary, tags, responses = { 200: { description: 'Operacion exitosa' } }) => ({
   summary,
   tags,
@@ -60,6 +62,7 @@ export const openapiSpec = {
   },
   servers: [{ url: 'http://localhost:5000', description: 'Servidor local' }],
   tags: [
+    { name: 'Gestión TI', description: 'Solicitudes, pedidos, documentos privados y notificaciones' },
     { name: 'Health', description: 'Estado del servidor' },
     { name: 'Autenticacion', description: 'Inicio y cierre de sesion' },
     { name: 'Usuarios', description: 'Gestion de usuarios' },
@@ -69,6 +72,7 @@ export const openapiSpec = {
     { name: 'Reportes', description: 'Reportes del sistema' },
   ],
   paths: {
+    ...gestionTIPaths,
     '/api/health': {
       get: {
         summary: 'Verificar estado del servidor',

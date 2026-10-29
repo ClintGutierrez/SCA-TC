@@ -144,3 +144,36 @@ export const getReporteMantenimiento = () => apiClient.get('/reportes/mantenimie
 export const getAuditoria = (filtros = {}) => apiClient.get('/auditoria', { params: { limit: 200, ...filtros } });
 
 export default apiClient;
+
+// Las consultas públicas no intentan renovar una sesión del panel.
+const publicTI = axios.create({ baseURL: `${API_URL}/api/gestion-ti` });
+const tiChanged = (response) => { window.dispatchEvent(new Event('sca-ti-updated')); return response; };
+export const registrarSolicitudTI = (datos, documento) => {
+  const form = new FormData(); form.append('datos', JSON.stringify(datos)); form.append('documento', documento);
+  return publicTI.post('/solicitudes', form).then(tiChanged);
+};
+export const solicitarAccesoTI = (datos) => publicTI.post('/consulta/acceso', datos);
+export const consultarSolicitudTI = (datos) => publicTI.post('/consulta', datos);
+export const descargarDocumentoPublicoTI = (id, datos) => publicTI.post(`/consulta/documentos/${id}`, datos, { responseType: 'blob' });
+export const getSolicitudesTI = () => apiClient.get('/gestion-ti/solicitudes');
+export const getSolicitudTI = (id) => apiClient.get(`/gestion-ti/solicitudes/${id}`);
+export const getPersonalTI = () => apiClient.get('/gestion-ti/personal-ti');
+export const accionSolicitudTI = (id, datos, archivos = []) => {
+  const form = new FormData(); form.append('datos', JSON.stringify(datos));
+  archivos.forEach((file) => form.append('adjuntos', file));
+  return apiClient.post(`/gestion-ti/solicitudes/${id}/acciones`, form).then(tiChanged);
+};
+export const descargarDocumentoTI = (id) => apiClient.get(`/gestion-ti/documentos/${id}`, { responseType: 'blob' });
+export const getPedidosTI = () => apiClient.get('/gestion-ti/pedidos');
+export const vincularBienPedidoTI = (id, bienId) => apiClient.post(`/gestion-ti/pedidos/${id}/bienes`, { bienId }).then(tiChanged);
+export const crearPedidoTI = (data) => apiClient.post('/gestion-ti/pedidos', data).then(tiChanged);
+export const accionPedidoTI = (id, data) => apiClient.post(`/gestion-ti/pedidos/${id}/acciones`, data).then(tiChanged);
+export const getHistorialPedidoTI = (id) => apiClient.get(`/gestion-ti/pedidos/${id}/historial`);
+export const getNotificacionesTI = () => apiClient.get('/gestion-ti/notificaciones');
+export const leerNotificacionTI = (id) => apiClient.post(`/gestion-ti/notificaciones/${id}/leida`).then(tiChanged);
+
+export const guardarDescargaTI = (response, nombre) => {
+  const url = URL.createObjectURL(response.data);
+  const anchor = document.createElement('a'); anchor.href = url; anchor.download = nombre; anchor.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+};
