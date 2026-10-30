@@ -151,7 +151,7 @@ function App() {
           setUsuarios([]);
         }
 
-        if (['administrador', 'jefatura', 'auditor'].includes(currentUser.rol)) {
+        if (['administrador', 'jefatura', 'tecnico', 'almacen', 'auditor'].includes(currentUser.rol)) {
           const personalResponse = await api.getPersonal();
           setPersonal(personalResponse.data);
         } else {

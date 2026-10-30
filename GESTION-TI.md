@@ -31,6 +31,18 @@ Los estados de solicitudes son `recibida`, `asignada`, `en_atencion`, `atendida`
 
 Los registros anteriores de `localStorage` permanecen en el navegador y no se importan automáticamente: algunos podían contener solo el nombre del adjunto. Las nuevas bandejas muestran exclusivamente registros persistidos en el servidor.
 
+## Formulario y consulta pública
+
+El registro se organiza en cuatro pasos: tipo de solicitud, datos personales, requerimiento y revisión final. Cada paso valida sus campos antes de continuar. Desde la revisión se puede editar cualquier sección, y los datos y el archivo elegido se conservan al retroceder o alternar entre registro y consulta. El borrador permanece solo en memoria: recargar o cerrar la página lo descarta.
+
+El documento oficial se puede seleccionar o arrastrar al formulario. La pantalla muestra nombre y tamaño y permite cambiarlo o quitarlo. Los errores de formato, tamaño y campos incompletos aparecen junto al control correspondiente.
+
+Después del registro, la constancia permite copiar el número y la clave, mostrar u ocultar la clave y descargar un PDF con el resumen y los datos de consulta. El PDF contiene la clave privada y debe conservarse de forma privada. Su generación se realiza en el navegador y utiliza la biblioteca PDF existente, cargada al solicitar la descarga.
+
+La consulta muestra el avance por etapas, las observaciones, las respuestas y los documentos descargables. Para facilitar el pegado desde otras aplicaciones, el código se normaliza a mayúsculas y guiones simples, y la clave hexadecimal se normaliza a minúsculas y sin espacios. La recuperación de clave utiliza el mismo mecanismo de correo del backend; no reemplaza la comprobación de acceso. El formulario ofrece preguntas frecuentes sobre el registro y el seguimiento.
+
+Desde `frontend`, ejecutar `npm test` para verificar campos condicionales, validación de archivos, normalización de credenciales y generación de constancias PDF.
+
 ## Correo y alertas
 
 Configurar únicamente en el entorno privado del backend:

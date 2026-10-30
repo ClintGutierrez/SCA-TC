@@ -40,6 +40,8 @@ async function runMigrations() {
       await transaction.unsafe(movementsMigration);
       const gestionTIPath = path.join(path.dirname(fileURLToPath(import.meta.url)), '20261028_documentaria_almacen.sql');
       await transaction.unsafe(fs.readFileSync(gestionTIPath, 'utf8').replace(/^\uFEFF/, ''));
+      const vinculoPath = path.join(path.dirname(fileURLToPath(import.meta.url)), '20261029_vinculo_laboral.sql');
+      await transaction.unsafe(fs.readFileSync(vinculoPath, 'utf8').replace(/^\uFEFF/, ''));
       await transaction.unsafe(`ALTER TABLE IF EXISTS usuarios ADD COLUMN IF NOT EXISTS password_hash TEXT`);
       await transaction.unsafe(`ALTER TABLE IF EXISTS usuarios ADD COLUMN IF NOT EXISTS last_login TIMESTAMP`);
       await transaction.unsafe(`ALTER TABLE IF EXISTS usuarios ADD COLUMN IF NOT EXISTS activo_login BOOLEAN DEFAULT TRUE`);

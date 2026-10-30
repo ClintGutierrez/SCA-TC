@@ -13,7 +13,7 @@ const operationStyles = {
   LOGOUT: 'bg-slate-100 text-slate-700',
 };
 
-const moduleOptions = ['Todos', 'usuarios', 'bienes', 'mantenimiento', 'depreciacion', 'reportes', 'auditoria'];
+const moduleOptions = ['Todos', 'usuarios', 'personal', 'vinculo_laboral', 'bienes', 'mantenimiento', 'depreciacion', 'reportes', 'auditoria'];
 const actionOptions = ['Todas', 'INSERT', 'UPDATE', 'DELETE'];
 
 const formatAuditData = (data) => {
@@ -684,7 +684,7 @@ export default function Auditoria() {
     try {
       const response = await api.getUsuarios();
       const usuarios = Array.isArray(response.data) ? response.data : [];
-      setUsuariosDisponibles(usuarios.filter((usuario) => usuario?.estado !== 'inactivo' && usuario?.nombre));
+      setUsuariosDisponibles(usuarios.filter((usuario) => usuario?.nombre));
     } catch (fetchError) {
       setUsuariosDisponibles([]);
     }

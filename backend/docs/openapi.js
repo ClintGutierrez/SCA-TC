@@ -1,4 +1,5 @@
 import { gestionTIPaths } from './gestionTI.js';
+import { vinculoLaboralPaths } from './vinculoLaboral.js';
 
 const secured = (summary, tags, responses = { 200: { description: 'Operacion exitosa' } }) => ({
   summary,
@@ -62,6 +63,7 @@ export const openapiSpec = {
   },
   servers: [{ url: 'http://localhost:5000', description: 'Servidor local' }],
   tags: [
+    { name: 'Vínculo laboral', description: 'CUS12: períodos del personal, vigencia, historial y auditoría' },
     { name: 'Gestión TI', description: 'Solicitudes, pedidos, documentos privados y notificaciones' },
     { name: 'Health', description: 'Estado del servidor' },
     { name: 'Autenticacion', description: 'Inicio y cierre de sesion' },
@@ -72,6 +74,7 @@ export const openapiSpec = {
     { name: 'Reportes', description: 'Reportes del sistema' },
   ],
   paths: {
+    ...vinculoLaboralPaths,
     ...gestionTIPaths,
     '/api/health': {
       get: {

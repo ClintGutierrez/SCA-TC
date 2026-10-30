@@ -1,12 +1,14 @@
+import { esFecha, establecerActor, fechaISO, validarPersonalAsignable } from '../utils/vinculoLaboral.js';
+
 const assignmentFields = `
   a.id, a.bien_id, a.personal_id, a.usuario_id, a.fecha_asignacion,
-  a.fecha_devolucion, a.observaciones, a.estado, a.created_at,
+  a.fecha_devolucion, a.observaciones, a.estado, a.created_at, a.vinculo_laboral_id,
   b.nombre AS bien_nombre, b.tipo AS bien_tipo, b.numero_serie,
   p.nombre AS personal_nombre, p.apellido AS personal_apellido, p.dni AS personal_dni,
   u.nombre AS usuario_registro, u.email AS usuario_registro_email
 `;
 
-const isDate = (value) => /^\d{4}-\d{2}-\d{2}$/.test(value);
+const isDate = esFecha;
 
 export const listAsignaciones = async (req, res, sql) => {
   try {
@@ -40,6 +42,7 @@ export const createAsignacion = async (req, res, sql) => {
   if (!date || !isDate(date)) return res.status(400).json({ error: 'La fecha de asignación no es válida' });
   try {
     const created = await sql.begin(async (tx) => {
+      await establecerActor(tx, req.user);
       const [bien] = await tx`
         SELECT id, estado FROM bienes_informaticos WHERE id = ${bienId} FOR UPDATE
       `;
@@ -55,13 +58,10 @@ export const createAsignacion = async (req, res, sql) => {
         SELECT id FROM asignaciones WHERE bien_id = ${bienId} AND fecha_devolucion IS NULL LIMIT 1
       `;
       if (active) { const error = new Error('El bien ya tiene una asignación activa'); error.status = 409; throw error; }
-      const [personal] = await tx`
-        SELECT id FROM personal WHERE id = ${personalId} AND estado = 'activo'
-      `;
-      if (!personal) { const error = new Error('El personal no existe o está inactivo'); error.status = 409; throw error; }
+      const personal = await validarPersonalAsignable(tx, personalId, date);
       const [row] = await tx`
-        INSERT INTO asignaciones (bien_id, personal_id, usuario_id, fecha_asignacion, observaciones, estado)
-        VALUES (${bienId}, ${personalId}, ${usuarioId || null}, ${date}, ${observaciones?.trim() || null}, 'activa')
+        INSERT INTO asignaciones (bien_id, personal_id, usuario_id, fecha_asignacion, observaciones, estado, vinculo_laboral_id)
+        VALUES (${bienId}, ${personalId}, ${usuarioId || null}, ${date}, ${observaciones?.trim() || null}, 'activa', ${personal.vinculo_laboral_id})
         RETURNING id
       `;
       await tx`UPDATE bienes_informaticos SET estado = 'asignado', updated_at = CURRENT_TIMESTAMP WHERE id = ${bienId}`;
@@ -88,13 +88,14 @@ export const returnAsignacion = async (req, res, sql) => {
   if (!date || !isDate(date)) return res.status(400).json({ error: 'La fecha de devolución no es válida' });
   try {
     const result = await sql.begin(async (tx) => {
+      await establecerActor(tx, req.user);
       const [assignment] = await tx`
         SELECT id, bien_id, fecha_asignacion, fecha_devolucion
         FROM asignaciones WHERE id = ${req.params.id} FOR UPDATE
       `;
       if (!assignment) { const error = new Error('Asignación no encontrada'); error.status = 404; throw error; }
       if (assignment.fecha_devolucion) { const error = new Error('La asignación ya fue devuelta'); error.status = 409; throw error; }
-      if (date < String(assignment.fecha_asignacion).slice(0, 10)) {
+      if (date < fechaISO(assignment.fecha_asignacion)) {
         const error = new Error('La devolución no puede ser anterior a la asignación'); error.status = 400; throw error;
       }
       const [row] = await tx`
