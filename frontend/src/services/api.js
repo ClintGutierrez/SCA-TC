@@ -99,6 +99,9 @@ export const getPersonalById = (id) => apiClient.get(`/personal/${id}`);
 export const createPersonal = (data) => apiClient.post('/personal', data);
 export const updatePersonal = (id, data) => apiClient.put(`/personal/${id}`, data);
 export const disablePersonal = (id) => apiClient.delete(`/personal/${id}`);
+export const getVinculosLaborales = (id) => apiClient.get(`/personal/${id}/vinculos`);
+export const createVinculoLaboral = (id, data) => apiClient.post(`/personal/${id}/vinculos`, data);
+export const updateVinculoLaboral = (id, vinculoId, data) => apiClient.put(`/personal/${id}/vinculos/${vinculoId}`, data);
 export const getConfiguracion = () => apiClient.get('/configuracion');
 export const saveConfiguracion = (data) => apiClient.put('/configuracion', data);
 

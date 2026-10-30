@@ -9,6 +9,7 @@
     "dev": "nodemon server.js",
     "migrate": "node migrations/run.js",
     "migrate:gestion-ti": "node migrations/gestionTI.js",
+    "migrate:cus12": "node migrations/vinculoLaboral.js",
     "test": "node --test tests/*.test.js"
   },
   "keywords": [

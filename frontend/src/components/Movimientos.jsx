@@ -8,7 +8,7 @@ const TYPES = [
   ['prestamo', 'Préstamo', 'Entrega temporal con fecha de retorno.'],
 ];
 const DIRECT_REGIMES = ['CAP', 'CAS', 'Personal de confianza', 'Servir'];
-const today = () => new Date().toISOString().slice(0, 10);
+const today = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Lima', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
 const inputClass = 'mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:border-blue-300 focus:bg-white focus:ring-4 focus:ring-blue-100';
 const blankForm = () => ({ bien_id: '', bien_reemplazo_id: '', personal_id: '', fecha_movimiento: today(), fecha_fin: '', motivo: '', observaciones: '' });
 
@@ -48,11 +48,11 @@ export default function Movimientos({ bienes = [], personal = [], canManage = fa
     return asset.estado === 'activo' && String(asset.id) !== String(form.bien_id)
       && query.includes(searchBien.trim().toLowerCase());
   }), [bienes, form.bien_id, searchBien]);
-  const activePeople = useMemo(() => personal.filter((person) => person.estado === 'activo'
-    && `${person.nombre} ${person.apellido} ${person.dni} ${person.regimen_laboral}`.toLowerCase().includes(searchPeople.trim().toLowerCase())), [personal, searchPeople]);
-  const selectedPerson = activePeople.find((person) => String(person.id) === String(form.personal_id));
+  const activePeople = useMemo(() => personal.filter((person) => (type === 'retiro' || person.estado === 'activo')
+    && `${person.nombre} ${person.apellido} ${person.dni} ${person.regimen_laboral}`.toLowerCase().includes(searchPeople.trim().toLowerCase())), [personal, searchPeople, type]);
+  const selectedPerson = personal.find((person) => String(person.id) === String(form.personal_id));
   const recipient = selectedPerson;
-  const requiresApproval = recipient && !DIRECT_REGIMES.includes(recipient.regimen_laboral);
+  const requiresApproval = type !== 'retiro' && recipient && !DIRECT_REGIMES.includes(recipient.regimen_laboral);
   const managerIncomplete = requiresApproval && (!recipient.jefe_inmediato || !recipient.correo_jefe);
 
   const submit = async (event) => {
@@ -192,13 +192,14 @@ export default function Movimientos({ bienes = [], personal = [], canManage = fa
           </div>
           {recipient && (
             <div className={`mt-4 rounded-2xl border px-4 py-3 text-sm ${requiresApproval ? 'border-amber-200 bg-amber-50 text-amber-900' : 'border-emerald-200 bg-emerald-50 text-emerald-800'}`}>
-              {requiresApproval
+              {type === 'retiro' ? 'El retiro puede registrarse aunque el trabajador esté inactivo o su vínculo haya terminado.' : requiresApproval
                 ? managerIncomplete
                   ? 'Falta registrar el jefe inmediato y su correo en Personal; no se puede solicitar autorización todavía.'
                   : `Este movimiento quedará pendiente de autorización del jefe inmediato (${recipient.correo_jefe}).`
                 : `El documento se enviará directamente al correo institucional ${recipient.correo_institucional} (régimen ${recipient.regimen_laboral}).`}
             </div>
           )}
+          {type !== 'retiro' && <p className="mt-3 text-sm text-slate-500">Para personal CAS o CAP se requiere un vínculo vigente en la fecha del movimiento. Regístralo o actualízalo desde Personal → Vínculo laboral.</p>}
           <button type="submit" disabled={saving || managerIncomplete} className="mt-5 rounded-2xl bg-blue-600 px-5 py-3 font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50">
             {saving ? 'Registrando...' : 'Registrar movimiento y generar documento'}
           </button>

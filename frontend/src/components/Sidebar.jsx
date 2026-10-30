@@ -31,7 +31,7 @@ export default function Sidebar({ isOpen, onViewChange, currentView, onCloseSide
     { id: 'mantenimiento', icon: '🔧', label: 'Mantenimiento', description: 'Control de servicios', roles: ['administrador', 'jefatura', 'tecnico'] },
     { id: 'reportes', icon: '📈', label: 'Reportes', description: 'Análisis y reportes', roles: ['administrador', 'jefatura', 'tecnico'] },
     { id: 'usuarios', icon: '👥', label: 'Usuarios', description: 'Accesos y roles', roles: ['administrador'] },
-    { id: 'personal', icon: '🧑‍💼', label: 'Personal', description: 'Directorio institucional', roles: ['administrador', 'jefatura', 'auditor'] },
+    { id: 'personal', icon: '🧑‍💼', label: 'Personal', description: 'Directorio y vínculos laborales', roles: ['administrador', 'jefatura', 'tecnico', 'almacen', 'auditor'] },
     { id: 'auditoria', icon: '🛡️', label: 'Auditoría', description: 'Log de acciones', roles: ['administrador', 'auditor'] },
   ];
 
