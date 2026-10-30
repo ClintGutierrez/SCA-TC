@@ -120,6 +120,7 @@ export const getBajas = () => apiClient.get('/bajas');
 // Asignaciones
 export const getAsignaciones = (params = {}) => apiClient.get('/asignaciones', { params });
 export const createAsignacion = (data) => apiClient.post('/asignaciones', data);
+export const reasignarAsignacion = (id, data) => apiClient.post(`/asignaciones/${id}/reasignar`, data);
 export const devolverAsignacion = (id, data) => apiClient.post(`/asignaciones/${id}/devolucion`, data);
 export const getMovimientos = (params = {}) => apiClient.get('/movimientos', { params });
 export const createMovimiento = (data) => apiClient.post('/movimientos', data);

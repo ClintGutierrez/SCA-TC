@@ -83,6 +83,59 @@ export const createAsignacion = async (req, res, sql) => {
   }
 };
 
+export const reasignarAsignacion = async (req, res, sql) => {
+  const { personal_id: nuevoResponsableId, fecha_asignacion: fechaReasignacion, observaciones, motivo } = req.body || {};
+  if (!Number.isInteger(Number(nuevoResponsableId))) {
+    return res.status(400).json({ error: 'El nuevo responsable es obligatorio' });
+  }
+  if (!fechaReasignacion || !isDate(fechaReasignacion)) {
+    return res.status(400).json({ error: 'La fecha de reasignación no es válida' });
+  }
+  try {
+    const result = await sql.begin(async (tx) => {
+      await establecerActor(tx, req.user);
+      const [assignment] = await tx`
+        SELECT id, bien_id, personal_id, fecha_asignacion, fecha_devolucion
+        FROM asignaciones WHERE id = ${req.params.id} FOR UPDATE
+      `;
+      if (!assignment) { const error = new Error('Asignación no encontrada'); error.status = 404; throw error; }
+      if (assignment.fecha_devolucion) { const error = new Error('La asignación ya fue devuelta'); error.status = 409; throw error; }
+      if (Number(assignment.personal_id) === Number(nuevoResponsableId)) {
+        const error = new Error('El equipo ya está asignado a ese personal'); error.status = 409; throw error;
+      }
+      if (fechaReasignacion < fechaISO(assignment.fecha_asignacion)) {
+        const error = new Error('La reasignación no puede ser anterior a la fecha de asignación actual'); error.status = 400; throw error;
+      }
+      const [current] = await tx`SELECT id FROM asignaciones WHERE bien_id = ${assignment.bien_id} AND fecha_devolucion IS NULL AND id != ${assignment.id} LIMIT 1`;
+      if (current) { const error = new Error('El bien ya tiene otra asignación activa'); error.status = 409; throw error; }
+      const personal = await validarPersonalAsignable(tx, nuevoResponsableId, fechaReasignacion);
+      const [updated] = await tx`
+        UPDATE asignaciones
+        SET fecha_devolucion = ${fechaReasignacion},
+            estado = 'devuelta',
+            observaciones = COALESCE(${String(observaciones || '').trim() || null}, observaciones)
+        WHERE id = ${req.params.id}
+        RETURNING *
+      `;
+      const [row] = await tx`
+        INSERT INTO asignaciones (bien_id, personal_id, usuario_id, fecha_asignacion, observaciones, estado, vinculo_laboral_id)
+        VALUES (${assignment.bien_id}, ${nuevoResponsableId}, ${req.user?.sub || req.user?.id || null}, ${fechaReasignacion}, ${String(motivo || observaciones || '').trim() || null}, 'activa', ${personal.vinculo_laboral_id})
+        RETURNING *
+      `;
+      await tx`
+        UPDATE bienes_informaticos SET estado = 'asignado', updated_at = CURRENT_TIMESTAMP
+        WHERE id = ${assignment.bien_id}
+      `;
+      return { updated, row };
+    });
+    res.json({ message: 'Reasignación registrada correctamente', asignacion: result.row, asignacion_anterior: result.updated });
+  } catch (error) {
+    if (error.status) return res.status(error.status).json({ error: error.message });
+    console.error('Error al reasignar asignación:', error);
+    res.status(500).json({ error: 'No se pudo reasignar el equipo' });
+  }
+};
+
 export const returnAsignacion = async (req, res, sql) => {
   const { fecha_devolucion: date, observaciones } = req.body || {};
   if (!date || !isDate(date)) return res.status(400).json({ error: 'La fecha de devolución no es válida' });

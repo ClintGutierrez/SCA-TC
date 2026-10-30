@@ -567,7 +567,7 @@ function App() {
         return <Bajas bienes={bienes} canCreate={['administrador', 'jefatura'].includes(role)} />;
       case 'asignaciones':
       case 'movimientos':
-        return <Movimientos bienes={bienes} personal={personal} canManage={['administrador', 'jefatura'].includes(role)} canApprove={['administrador', 'jefatura'].includes(role)} />;
+        return <Movimientos bienes={bienes} personal={personal} canManage={['administrador', 'jefatura', 'almacen'].includes(role)} canApprove={['administrador', 'jefatura'].includes(role)} />;
       case 'reportes':
         return <Reportes currentUser={currentUser} />;
       case 'usuarios':

@@ -1,7 +1,7 @@
 import nodemailer from 'nodemailer';
 import { esFecha, establecerActor, fechaISO, fechaLima, validarPersonalAsignable } from '../utils/vinculoLaboral.js';
 
-const TYPES = new Set(['asignacion', 'cambio', 'retiro', 'prestamo']);
+const TYPES = new Set(['asignacion', 'reasignacion', 'cambio', 'retiro', 'prestamo']);
 const DIRECT_REGIMES = new Set(['CAP', 'CAS', 'Personal de confianza', 'Servir']);
 const fields = `m.*, b.nombre AS bien_nombre, b.numero_serie,
   b_reemplazo.nombre AS bien_reemplazo_nombre, b_reemplazo.numero_serie AS reemplazo_numero_serie,
@@ -87,18 +87,31 @@ const create = async (req, res, sql) => {
         e.status = 404;
         throw e;
       }
+      if (tipo === 'reasignacion' && (!personal_destino_id || !Number.isInteger(Number(personal_destino_id)))) {
+        const e = new Error('El nuevo responsable es obligatorio para la reasignación');
+        e.status = 400;
+        throw e;
+      }
       const person = tipo === 'retiro'
         ? (await tx`SELECT * FROM personal WHERE id=${personal_id || 0} FOR UPDATE`)[0]
         : await validarPersonalAsignable(tx, personal_id || 0, movementDate);
-      const recipient = person;
+      const destination = tipo === 'reasignacion'
+        ? await validarPersonalAsignable(tx, personal_destino_id, movementDate)
+        : null;
+      const recipient = tipo === 'reasignacion' ? destination : person;
       if (!person) { const e = new Error('El personal responsable es obligatorio'); e.status = 400; throw e; }
+      if (tipo === 'reasignacion' && Number(personal_id) === Number(personal_destino_id)) {
+        const e = new Error('El nuevo responsable debe ser distinto del responsable actual');
+        e.status = 400;
+        throw e;
+      }
       if (['asignacion', 'prestamo'].includes(tipo) && bien.estado !== 'activo') {
         const e = new Error('El bien debe estar disponible para asignarlo o prestarlo');
         e.status = 409;
         throw e;
       }
-      if (['cambio', 'retiro'].includes(tipo) && bien.estado !== 'asignado') {
-        const e = new Error('Solo se puede cambiar o retirar un bien actualmente asignado');
+      if (['cambio', 'retiro', 'reasignacion'].includes(tipo) && bien.estado !== 'asignado') {
+        const e = new Error('Solo se puede cambiar, reasignar o retirar un bien actualmente asignado');
         e.status = 409;
         throw e;
       }
@@ -108,6 +121,17 @@ const create = async (req, res, sql) => {
         throw e;
       }
       if (['cambio', 'retiro'].includes(tipo)) {
+        const [currentAssignment] = await tx`
+          SELECT id, personal_id FROM asignaciones
+          WHERE bien_id = ${bien_id} AND fecha_devolucion IS NULL FOR UPDATE
+        `;
+        if (!currentAssignment || Number(currentAssignment.personal_id) !== Number(personal_id)) {
+          const e = new Error('El trabajador seleccionado no es el responsable actual del equipo');
+          e.status = 409;
+          throw e;
+        }
+      }
+      if (tipo === 'reasignacion') {
         const [currentAssignment] = await tx`
           SELECT id, personal_id FROM asignaciones
           WHERE bien_id = ${bien_id} AND fecha_devolucion IS NULL FOR UPDATE
@@ -153,7 +177,7 @@ const create = async (req, res, sql) => {
       const estado = direct ? 'aprobado' : 'pendiente';
       const [created] = await tx`INSERT INTO movimientos_patrimoniales
         (tipo,bien_id,bien_reemplazo_id,personal_id,personal_destino_id,estado,fecha_movimiento,fecha_fin,motivo,observaciones,creado_por,datos,vinculo_laboral_id)
-        VALUES (${tipo},${bien_id},${tipo === 'cambio' ? bien_reemplazo_id : null},${personal_id || null},${personal_destino_id || null},${estado},${movementDate},${fecha_fin || null},${motivo.trim()},${String(observaciones || '').trim() || null},${req.user?.sub || null},${tx.json(datos)},${person.vinculo_laboral_id || null})
+        VALUES (${tipo},${bien_id},${tipo === 'cambio' ? bien_reemplazo_id : null},${personal_id || null},${personal_destino_id || null},${estado},${movementDate},${fecha_fin || null},${motivo.trim()},${String(observaciones || '').trim() || null},${req.user?.sub || null},${tx.json(datos)},${recipient?.vinculo_laboral_id || person?.vinculo_laboral_id || null})
         RETURNING id`;
       if (direct && ['asignacion', 'prestamo'].includes(tipo)) {
         const [active] = await tx`SELECT id FROM asignaciones WHERE bien_id = ${bien_id} AND fecha_devolucion IS NULL FOR UPDATE`;
@@ -168,6 +192,12 @@ const create = async (req, res, sql) => {
           VALUES (${bien_reemplazo_id}, ${personal_id}, ${req.user?.sub || null}, ${movementDate}, ${observaciones || null}, 'activa', ${person.vinculo_laboral_id})`;
         await tx`UPDATE bienes_informaticos SET estado='mantenimiento', updated_at=CURRENT_TIMESTAMP WHERE id=${bien_id}`;
         await tx`UPDATE bienes_informaticos SET estado='asignado', updated_at=CURRENT_TIMESTAMP WHERE id=${bien_reemplazo_id}`;
+      } else if (direct && tipo === 'reasignacion') {
+        await tx`UPDATE asignaciones SET fecha_devolucion = ${movementDate}, estado = 'devuelta'
+          WHERE bien_id = ${bien_id} AND fecha_devolucion IS NULL`;
+        await tx`INSERT INTO asignaciones (bien_id, personal_id, usuario_id, fecha_asignacion, observaciones, estado, vinculo_laboral_id)
+          VALUES (${bien_id}, ${personal_destino_id}, ${req.user?.sub || null}, ${movementDate}, ${observaciones || null}, 'activa', ${destination.vinculo_laboral_id})`;
+        await tx`UPDATE bienes_informaticos SET estado='asignado', updated_at=CURRENT_TIMESTAMP WHERE id=${bien_id}`;
       } else if (direct && tipo === 'retiro') {
         await tx`UPDATE asignaciones SET fecha_devolucion = ${movementDate}, estado = 'devuelta'
           WHERE bien_id = ${bien_id} AND fecha_devolucion IS NULL`;
@@ -252,6 +282,12 @@ const approve = async (req, res, sql) => {
       if (approved && ['asignacion', 'prestamo'].includes(updated.tipo)) {
         await tx`INSERT INTO asignaciones (bien_id, personal_id, usuario_id, fecha_asignacion, observaciones, estado, vinculo_laboral_id)
           VALUES (${updated.bien_id}, ${updated.personal_id}, ${req.user?.sub || null}, ${updated.fecha_movimiento}, ${updated.observaciones}, 'activa', ${recipient.vinculo_laboral_id})`;
+        await tx`UPDATE bienes_informaticos SET estado='asignado', updated_at=CURRENT_TIMESTAMP WHERE id=${updated.bien_id}`;
+      } else if (approved && updated.tipo === 'reasignacion') {
+        await tx`UPDATE asignaciones SET fecha_devolucion = ${updated.fecha_movimiento}, estado = 'devuelta'
+          WHERE bien_id = ${updated.bien_id} AND fecha_devolucion IS NULL`;
+        await tx`INSERT INTO asignaciones (bien_id, personal_id, usuario_id, fecha_asignacion, observaciones, estado, vinculo_laboral_id)
+          VALUES (${updated.bien_id}, ${updated.personal_destino_id}, ${req.user?.sub || null}, ${updated.fecha_movimiento}, ${updated.observaciones}, 'activa', ${recipient.vinculo_laboral_id})`;
         await tx`UPDATE bienes_informaticos SET estado='asignado', updated_at=CURRENT_TIMESTAMP WHERE id=${updated.bien_id}`;
       } else if (approved && updated.tipo === 'cambio') {
         await tx`UPDATE asignaciones SET fecha_devolucion = ${updated.fecha_movimiento}, estado = 'devuelta'

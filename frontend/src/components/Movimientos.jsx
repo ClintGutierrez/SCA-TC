@@ -3,6 +3,7 @@ import * as api from '../services/api';
 
 const TYPES = [
   ['asignacion', 'Asignación', 'Entrega de un bien a un trabajador.'],
+  ['reasignacion', 'Reasignación', 'Cambio del responsable de un equipo ya asignado.'],
   ['cambio', 'Cambio', 'Reemplazo de un equipo averiado por otro para el mismo trabajador.'],
   ['retiro', 'Retiro', 'Retiro del bien al responsable y retorno a disponible.'],
   ['prestamo', 'Préstamo', 'Entrega temporal con fecha de retorno.'],
@@ -10,7 +11,7 @@ const TYPES = [
 const DIRECT_REGIMES = ['CAP', 'CAS', 'Personal de confianza', 'Servir'];
 const today = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Lima', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
 const inputClass = 'mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:border-blue-300 focus:bg-white focus:ring-4 focus:ring-blue-100';
-const blankForm = () => ({ bien_id: '', bien_reemplazo_id: '', personal_id: '', fecha_movimiento: today(), fecha_fin: '', motivo: '', observaciones: '' });
+const blankForm = () => ({ bien_id: '', bien_reemplazo_id: '', personal_id: '', personal_destino_id: '', fecha_movimiento: today(), fecha_fin: '', motivo: '', observaciones: '' });
 
 export default function Movimientos({ bienes = [], personal = [], canManage = false, canApprove = false }) {
   const [type, setType] = useState('asignacion');
@@ -39,7 +40,7 @@ export default function Movimientos({ bienes = [], personal = [], canManage = fa
   useEffect(() => { load(); }, [filter]);
 
   const availableAssets = useMemo(() => bienes.filter((asset) => {
-    const valid = type === 'retiro' || type === 'cambio' ? asset.estado === 'asignado' : asset.estado === 'activo';
+    const valid = type === 'retiro' || type === 'cambio' || type === 'reasignacion' ? asset.estado === 'asignado' : asset.estado === 'activo';
     const query = `${asset.codigo_patrimonial || ''} ${asset.nombre || ''} ${asset.tipo || ''} ${asset.numero_serie || ''}`.toLowerCase();
     return valid && query.includes(searchBien.trim().toLowerCase());
   }), [bienes, type, searchBien]);
@@ -51,7 +52,8 @@ export default function Movimientos({ bienes = [], personal = [], canManage = fa
   const activePeople = useMemo(() => personal.filter((person) => (type === 'retiro' || person.estado === 'activo')
     && `${person.nombre} ${person.apellido} ${person.dni} ${person.regimen_laboral}`.toLowerCase().includes(searchPeople.trim().toLowerCase())), [personal, searchPeople, type]);
   const selectedPerson = personal.find((person) => String(person.id) === String(form.personal_id));
-  const recipient = selectedPerson;
+  const nextRecipient = personal.find((person) => String(person.id) === String(form.personal_destino_id));
+  const recipient = type === 'reasignacion' ? nextRecipient : selectedPerson;
   const requiresApproval = type !== 'retiro' && recipient && !DIRECT_REGIMES.includes(recipient.regimen_laboral);
   const managerIncomplete = requiresApproval && (!recipient.jefe_inmediato || !recipient.correo_jefe);
 
@@ -125,7 +127,7 @@ export default function Movimientos({ bienes = [], personal = [], canManage = fa
       ...(name === 'bien_id' ? { bien_reemplazo_id: '' } : {}),
     }));
   };
-  const needsPerson = ['asignacion', 'cambio', 'prestamo'].includes(type) || type === 'retiro';
+  const needsPerson = ['asignacion', 'cambio', 'prestamo', 'reasignacion'].includes(type) || type === 'retiro';
 
   return (
     <div className="space-y-6">
@@ -161,7 +163,7 @@ export default function Movimientos({ bienes = [], personal = [], canManage = fa
               </select>
             </label>
 
-            {needsPerson && (
+            {needsPerson && type !== 'reasignacion' && (
               <label className="block text-sm font-medium text-slate-700">
                 {type === 'cambio' || type === 'retiro' ? 'Responsable actual del equipo' : 'Trabajador responsable'}
                 <input value={searchPeople} onChange={(event) => setSearchPeople(event.target.value)} placeholder="Buscar por nombre, DNI o régimen" className={inputClass} />
@@ -170,6 +172,26 @@ export default function Movimientos({ bienes = [], personal = [], canManage = fa
                   {activePeople.map((person) => <option key={person.id} value={person.id}>{person.apellido}, {person.nombre} · {person.dni} · {person.regimen_laboral}</option>)}
                 </select>
               </label>
+            )}
+
+            {type === 'reasignacion' && (
+              <>
+                <label className="block text-sm font-medium text-slate-700">
+                  Responsable actual
+                  <input value={searchPeople} onChange={(event) => setSearchPeople(event.target.value)} placeholder="Buscar por nombre, DNI o régimen" className={inputClass} />
+                  <select required name="personal_id" value={form.personal_id} onChange={setField} className={inputClass}>
+                    <option value="">Selecciona el responsable actual</option>
+                    {activePeople.map((person) => <option key={person.id} value={person.id}>{person.apellido}, {person.nombre} · {person.dni} · {person.regimen_laboral}</option>)}
+                  </select>
+                </label>
+                <label className="block text-sm font-medium text-slate-700">
+                  Nuevo responsable
+                  <select required name="personal_destino_id" value={form.personal_destino_id} onChange={setField} className={inputClass}>
+                    <option value="">Selecciona el nuevo responsable</option>
+                    {activePeople.filter((person) => String(person.id) !== String(form.personal_id)).map((person) => <option key={person.id} value={person.id}>{person.apellido}, {person.nombre} · {person.dni} · {person.regimen_laboral}</option>)}
+                  </select>
+                </label>
+              </>
             )}
 
             {type === 'cambio' && (
