@@ -22,22 +22,26 @@ const sql = postgres({
   ssl: process.env.DB_SSL === 'false' ? false : process.env.DB_SSL,
 });
 
+const migrationsDir = path.dirname(fileURLToPath(import.meta.url));
+const readSql = (file) => fs.readFileSync(path.join(migrationsDir, file), 'utf8').replace(/^\uFEFF/, '');
+
+// Se ejecutan después de schema.sql, en este orden (todas son idempotentes)
+const extraMigrations = [
+  '20261013_asignaciones.sql',
+  '20261013_movimientos_patrimoniales.sql',
+  '20261028_documentaria_almacen.sql',
+];
+
 async function runMigrations() {
   try {
     await sql`SELECT 1`;
     console.log('✓ Conectado a PostgreSQL');
 
-    const schemaPath = path.join(path.dirname(fileURLToPath(import.meta.url)), 'schema.sql');
-    const schema = fs.readFileSync(schemaPath, 'utf8').replace(/^\uFEFF/, '');
-
     await sql.begin(async (transaction) => {
-      await transaction.unsafe(schema);
-      const assignmentMigrationPath = path.join(path.dirname(fileURLToPath(import.meta.url)), '20261013_asignaciones.sql');
-      const assignmentMigration = fs.readFileSync(assignmentMigrationPath, 'utf8').replace(/^\uFEFF/, '');
-      await transaction.unsafe(assignmentMigration);
-      const movementsMigrationPath = path.join(path.dirname(fileURLToPath(import.meta.url)), '20261013_movimientos_patrimoniales.sql');
-      const movementsMigration = fs.readFileSync(movementsMigrationPath, 'utf8').replace(/^\uFEFF/, '');
-      await transaction.unsafe(movementsMigration);
+      await transaction.unsafe(readSql('schema.sql'));
+      for (const file of extraMigrations) {
+        await transaction.unsafe(readSql(file));
+      }
       await transaction.unsafe(`ALTER TABLE IF EXISTS usuarios ADD COLUMN IF NOT EXISTS password_hash TEXT`);
       await transaction.unsafe(`ALTER TABLE IF EXISTS usuarios ADD COLUMN IF NOT EXISTS last_login TIMESTAMP`);
       await transaction.unsafe(`ALTER TABLE IF EXISTS usuarios ADD COLUMN IF NOT EXISTS activo_login BOOLEAN DEFAULT TRUE`);

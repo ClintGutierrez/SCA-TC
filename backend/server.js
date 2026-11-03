@@ -17,7 +17,9 @@ import { createAuditoriaRouter } from './routes/auditoria.js';
 import { createBajasRouter } from './routes/bajas.js';
 import { createAsignacionesRouter } from './routes/asignaciones.js';
 import { createMovimientosRouter } from './routes/movimientos.js';
+import { createGestionTIRouter } from './routes/gestionTI.js';
 import { ensureAuthColumns, seedDefaultUsers } from './utils/auth.js';
+import { startNotificationWorker } from './utils/notificacionesTI.js';
 import { openapiSpec } from './docs/openapi.js';
 
 dotenv.config();
@@ -83,6 +85,8 @@ app.use('/api/auditoria', createAuditoriaRouter(sql));
 app.use('/api/bajas', createBajasRouter(sql));
 app.use('/api/asignaciones', createAsignacionesRouter(sql));
 app.use('/api/movimientos', createMovimientosRouter(sql));
+app.use('/api/gestion-ti', createGestionTIRouter(sql));
+startNotificationWorker(sql);
 
 // Manejo de errores global
 app.use((err, req, res, next) => {
