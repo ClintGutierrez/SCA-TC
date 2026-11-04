@@ -1,3 +1,5 @@
+import { establecerActor, errorVinculo } from '../utils/vinculoLaboral.js';
+
 const PERSONAL_FIELDS = [
   'nombre',
   'apellido',
@@ -7,6 +9,7 @@ const PERSONAL_FIELDS = [
   'regimen_laboral',
   'oficina',
   'area',
+  'cargo',
   'sede',
   'piso',
   'jefe_inmediato',
@@ -42,6 +45,7 @@ const validatePayload = (payload) => {
   if (!REGIMENES_LABORALES.has(payload.regimen_laboral)) {
     return 'El régimen laboral seleccionado no es válido';
   }
+  if (payload.cargo && payload.cargo.length > 150) return 'El cargo admite como máximo 150 caracteres';
   if (payload.sede && !SEDES.has(payload.sede)) {
     return 'La sede seleccionada no es válida';
   }
@@ -62,7 +66,16 @@ const validatePayload = (payload) => {
 
 const selectFields = `
   id, nombre, apellido, dni, correo_institucional, numero_celular,
-  regimen_laboral, oficina, area, sede, piso, jefe_inmediato, correo_jefe,
+  COALESCE((SELECT v.tipo_vinculo FROM vinculo_laboral v WHERE v.personal_id=personal.id AND v.vigente=TRUE
+    AND v.fecha_inicio <= (CURRENT_TIMESTAMP AT TIME ZONE 'America/Lima')::date
+    AND (v.fecha_fin IS NULL OR v.fecha_fin >= (CURRENT_TIMESTAMP AT TIME ZONE 'America/Lima')::date) LIMIT 1), regimen_laboral) AS regimen_laboral,
+  oficina, area, cargo, sede, piso, jefe_inmediato, correo_jefe,
+  EXISTS(SELECT 1 FROM vinculo_laboral v WHERE v.personal_id=personal.id) AS tiene_vinculos,
+  (SELECT json_build_object('id', v.id, 'tipo_vinculo', v.tipo_vinculo, 'fecha_inicio', v.fecha_inicio,
+    'fecha_fin', v.fecha_fin, 'vigente', v.vigente) FROM vinculo_laboral v WHERE v.personal_id=personal.id
+    ORDER BY CASE WHEN v.vigente AND v.fecha_inicio <= (CURRENT_TIMESTAMP AT TIME ZONE 'America/Lima')::date
+      AND (v.fecha_fin IS NULL OR v.fecha_fin >= (CURRENT_TIMESTAMP AT TIME ZONE 'America/Lima')::date) THEN 0 ELSE 1 END,
+      v.fecha_inicio DESC, v.id DESC LIMIT 1) AS vinculo_laboral,
   (SELECT CONCAT(jefe.apellido, ', ', jefe.nombre) FROM personal jefe WHERE jefe.id = personal.jefe_inmediato) AS jefe_inmediato_nombre,
   estado, created_at, updated_at
 `;
@@ -125,19 +138,22 @@ export const createPersonal = async (req, res, sql) => {
     `;
     if (duplicate.length > 0) return res.status(409).json({ error: 'El DNI o correo institucional ya está registrado' });
 
-    const rows = await sql`
+    const rows = await sql.begin(async (tx) => {
+      await establecerActor(tx, req.user);
+      return tx`
       INSERT INTO personal (
         nombre, apellido, dni, correo_institucional, numero_celular,
-        regimen_laboral, oficina, area, sede, piso, jefe_inmediato, correo_jefe, estado
+        regimen_laboral, oficina, area, cargo, sede, piso, jefe_inmediato, correo_jefe, estado
       ) VALUES (
         ${payload.nombre}, ${payload.apellido}, ${payload.dni}, ${payload.correo_institucional},
         ${payload.numero_celular || null}, ${payload.regimen_laboral}, ${payload.oficina || null},
-        ${payload.area || null}, ${payload.sede || null}, ${payload.piso || null},
+        ${payload.area || null}, ${payload.cargo || null}, ${payload.sede || null}, ${payload.piso || null},
         ${payload.jefe_inmediato}, ${payload.correo_jefe}, ${payload.estado}
       )
       RETURNING id, nombre, apellido, dni, correo_institucional, numero_celular,
-        regimen_laboral, oficina, area, sede, piso, jefe_inmediato, correo_jefe, estado, created_at, updated_at
-    `;
+        regimen_laboral, oficina, area, cargo, sede, piso, jefe_inmediato, correo_jefe, estado, created_at, updated_at
+      `;
+    });
     res.status(201).json(rows[0]);
   } catch (error) {
     console.error('Error al crear personal:', error);
@@ -161,21 +177,33 @@ export const updatePersonal = async (req, res, sql) => {
     `;
     if (duplicate.length > 0) return res.status(409).json({ error: 'El DNI o correo institucional ya está registrado' });
 
-    const rows = await sql`
+    const rows = await sql.begin(async (tx) => {
+      await establecerActor(tx, req.user);
+      const [existing] = await tx`SELECT id, regimen_laboral FROM personal WHERE id=${req.params.id} FOR UPDATE`;
+      if (!existing) throw errorVinculo('Personal no encontrado', 404);
+      const [current] = await tx`SELECT tipo_vinculo FROM vinculo_laboral WHERE personal_id=${existing.id} AND vigente=TRUE
+        AND fecha_inicio <= (CURRENT_TIMESTAMP AT TIME ZONE 'America/Lima')::date
+        AND (fecha_fin IS NULL OR fecha_fin >= (CURRENT_TIMESTAMP AT TIME ZONE 'America/Lima')::date) LIMIT 1`;
+      if (payload.regimen_laboral !== (current?.tipo_vinculo || existing.regimen_laboral)) {
+        throw errorVinculo('Actualiza el régimen desde Vínculo laboral para conservar sus fechas e historial');
+      }
+      return tx`
       UPDATE personal
       SET nombre = ${payload.nombre}, apellido = ${payload.apellido}, dni = ${payload.dni},
           correo_institucional = ${payload.correo_institucional}, numero_celular = ${payload.numero_celular || null},
           regimen_laboral = ${payload.regimen_laboral}, oficina = ${payload.oficina || null},
-          area = ${payload.area || null}, sede = ${payload.sede || null}, piso = ${payload.piso || null},
+          area = ${payload.area || null}, cargo = ${payload.cargo || null}, sede = ${payload.sede || null}, piso = ${payload.piso || null},
           jefe_inmediato = ${payload.jefe_inmediato}, correo_jefe = ${payload.correo_jefe},
           estado = ${payload.estado}, updated_at = CURRENT_TIMESTAMP
       WHERE id = ${req.params.id}
       RETURNING id, nombre, apellido, dni, correo_institucional, numero_celular,
-        regimen_laboral, oficina, area, sede, piso, jefe_inmediato, correo_jefe, estado, created_at, updated_at
-    `;
+        regimen_laboral, oficina, area, cargo, sede, piso, jefe_inmediato, correo_jefe, estado, created_at, updated_at
+      `;
+    });
     if (rows.length === 0) return res.status(404).json({ error: 'Personal no encontrado' });
     res.json(rows[0]);
   } catch (error) {
+    if (error.status) return res.status(error.status).json({ error: error.message });
     console.error('Error al actualizar personal:', error);
     res.status(500).json({ error: 'No se pudo actualizar el personal' });
   }
@@ -183,12 +211,15 @@ export const updatePersonal = async (req, res, sql) => {
 
 export const disablePersonal = async (req, res, sql) => {
   try {
-    const rows = await sql`
+    const rows = await sql.begin(async (tx) => {
+      await establecerActor(tx, req.user);
+      return tx`
       UPDATE personal SET estado = 'inactivo', updated_at = CURRENT_TIMESTAMP
       WHERE id = ${req.params.id}
       RETURNING id, nombre, apellido, dni, correo_institucional, numero_celular,
-        regimen_laboral, oficina, area, sede, piso, jefe_inmediato, correo_jefe, estado, created_at, updated_at
-    `;
+        regimen_laboral, oficina, area, cargo, sede, piso, jefe_inmediato, correo_jefe, estado, created_at, updated_at
+      `;
+    });
     if (rows.length === 0) return res.status(404).json({ error: 'Personal no encontrado' });
     res.json({ message: 'Personal deshabilitado correctamente', personal: rows[0] });
   } catch (error) {

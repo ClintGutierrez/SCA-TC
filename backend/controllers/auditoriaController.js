@@ -76,9 +76,7 @@ export const getAuditoria = async (req, res, sql) => {
              u.nombre AS usuario,
              u.email
       FROM audit_log a
-      INNER JOIN usuarios u ON u.id = a.usuario_id
-        AND u.nombre IS NOT NULL
-        AND COALESCE(u.estado, 'activo') <> 'inactivo'
+      LEFT JOIN usuarios u ON u.id = a.usuario_id
       ${whereClause}
       ORDER BY a.created_at DESC
       LIMIT ${limit}

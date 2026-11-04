@@ -9,6 +9,7 @@ const defaultForm = {
   estado: 'activo',
   activoLogin: true,
   password: '',
+  esTI: false,
 };
 
 const roleLabels = {
@@ -16,6 +17,7 @@ const roleLabels = {
   jefatura: 'Jefatura',
   tecnico: 'Técnico',
   auditor: 'Auditor',
+  almacen: 'Almacén',
 };
 
 export default function Usuarios({ usuarios: initialUsuarios = [], onRefresh, currentUser }) {
@@ -84,6 +86,7 @@ export default function Usuarios({ usuarios: initialUsuarios = [], onRefresh, cu
       estado: usuario.estado || 'activo',
       activoLogin: usuario.activo_login !== false,
       password: '',
+      esTI: usuario.es_ti === true,
     });
     setShowForm(true);
   };
@@ -101,6 +104,7 @@ export default function Usuarios({ usuarios: initialUsuarios = [], onRefresh, cu
         rol: formData.rol,
         estado: formData.estado,
         activoLogin: formData.activoLogin,
+        esTI: formData.esTI,
       };
 
       if (!editingId || formData.password) {
@@ -187,6 +191,10 @@ export default function Usuarios({ usuarios: initialUsuarios = [], onRefresh, cu
           </div>
 
           <form onSubmit={handleSubmit} className="mt-6 space-y-5">
+            <label className="flex items-center gap-2 text-sm text-slate-700">
+              <input type="checkbox" name="esTI" checked={formData.esTI || ['tecnico', 'jefatura'].includes(formData.rol)} disabled={['tecnico', 'jefatura'].includes(formData.rol)} onChange={handleInputChange} />
+              Pertenece al personal de TI (puede recibir asignaciones y recepcionar pedidos)
+            </label>
             <div className="grid gap-4 md:grid-cols-2">
               <label className="block">
                 <span className="text-sm font-medium text-slate-700">Nombre</span>
@@ -208,6 +216,7 @@ export default function Usuarios({ usuarios: initialUsuarios = [], onRefresh, cu
                 <select name="rol" value={formData.rol} onChange={handleInputChange} className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:border-blue-300 focus:bg-white focus:ring-4 focus:ring-blue-100">
                   <option value="administrador">Administrador</option>
                   <option value="jefatura">Jefatura</option>
+                  <option value="almacen">Almacén</option>
                   <option value="tecnico">Técnico</option>
                   <option value="auditor">Auditor</option>
                 </select>

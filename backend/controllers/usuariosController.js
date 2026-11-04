@@ -7,6 +7,7 @@ const buildUserPayload = async (sql, body, existingPasswordHash = null) => {
     email,
     departamento,
     rol: normalizeRole(rol),
+    es_ti: ['jefatura', 'tecnico'].includes(normalizeRole(rol)) || body.esTI === true,
     estado: estado || 'activo',
     activo_login: activoLogin === undefined ? true : Boolean(activoLogin),
   };
@@ -29,7 +30,7 @@ export const getUsuarios = async (req, res, sql) => {
         ORDER BY created_at DESC, nombre ASC
       `
       : await sql`
-        SELECT id, nombre, email, departamento, rol, estado, activo_login, last_login, created_at
+        SELECT id, nombre, email, departamento, rol, es_ti, estado, activo_login, last_login, created_at
         FROM usuarios
         ORDER BY created_at DESC, nombre ASC
       `;
@@ -44,7 +45,7 @@ export const getUsuarioById = async (req, res, sql) => {
   try {
     const { id } = req.params;
     const usuarios = await sql`
-      SELECT id, nombre, email, departamento, rol, estado, activo_login, last_login, created_at
+      SELECT id, nombre, email, departamento, rol, es_ti, estado, activo_login, last_login, created_at
       FROM usuarios
       WHERE id = ${id}
       LIMIT 1
@@ -81,12 +82,13 @@ export const createUsuario = async (req, res, sql) => {
       estado,
       activoLogin,
       password,
+      esTI: req.body.esTI,
     });
 
     const usuarios = await sql`
-      INSERT INTO usuarios (nombre, email, departamento, rol, password_hash, estado, activo_login)
-      VALUES (${userPayload.nombre}, ${userPayload.email}, ${userPayload.departamento}, ${userPayload.rol}, ${userPayload.password_hash}, ${userPayload.estado}, ${userPayload.activo_login})
-      RETURNING id, nombre, email, departamento, rol, estado, activo_login, last_login, created_at
+      INSERT INTO usuarios (nombre, email, departamento, rol, password_hash, estado, activo_login, es_ti)
+      VALUES (${userPayload.nombre}, ${userPayload.email}, ${userPayload.departamento}, ${userPayload.rol}, ${userPayload.password_hash}, ${userPayload.estado}, ${userPayload.activo_login}, ${userPayload.es_ti})
+      RETURNING id, nombre, email, departamento, rol, es_ti, estado, activo_login, last_login, created_at
     `;
 
     res.status(201).json(usuarios[0]);
@@ -105,7 +107,7 @@ export const updateUsuario = async (req, res, sql) => {
     }
 
     const current = existingUsers[0];
-    const userPayload = await buildUserPayload(sql, req.body, current.password_hash);
+    const userPayload = await buildUserPayload(sql, { ...req.body, esTI: req.body.esTI ?? current.es_ti }, current.password_hash);
 
     const usuarios = await sql`
       UPDATE usuarios
@@ -113,11 +115,12 @@ export const updateUsuario = async (req, res, sql) => {
           email = ${userPayload.email},
           departamento = ${userPayload.departamento},
           rol = ${userPayload.rol},
+          es_ti = ${userPayload.es_ti},
           estado = ${userPayload.estado},
           activo_login = ${userPayload.activo_login},
           password_hash = ${userPayload.password_hash || current.password_hash}
       WHERE id = ${id}
-      RETURNING id, nombre, email, departamento, rol, estado, activo_login, last_login, created_at
+      RETURNING id, nombre, email, departamento, rol, es_ti, estado, activo_login, last_login, created_at
     `;
 
     res.json(usuarios[0]);
