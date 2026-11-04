@@ -17,6 +17,8 @@ import { createAuditoriaRouter } from './routes/auditoria.js';
 import { createBajasRouter } from './routes/bajas.js';
 import { createAsignacionesRouter } from './routes/asignaciones.js';
 import { createMovimientosRouter } from './routes/movimientos.js';
+import { createPedidosRouter } from './routes/pedidos.js';
+import { createNotificacionesRouter } from './routes/notificaciones.js';
 import { ensureAuthColumns, seedDefaultUsers } from './utils/auth.js';
 import { openapiSpec } from './docs/openapi.js';
 import { createGestionTIRouter } from './routes/gestionTI.js';
@@ -86,6 +88,8 @@ app.use('/api/bajas', createBajasRouter(sql));
 app.use('/api/asignaciones', createAsignacionesRouter(sql));
 app.use('/api/movimientos', createMovimientosRouter(sql));
 app.use('/api/gestion-ti', createGestionTIRouter(sql));
+app.use('/api/pedidos', createPedidosRouter(sql));
+app.use('/api/notificaciones', createNotificacionesRouter(sql));
 startNotificationWorker(sql);
 
 // Manejo de errores global
