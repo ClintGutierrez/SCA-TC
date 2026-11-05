@@ -23,7 +23,7 @@ proyecto TPG/
 ├── frontend/          # Aplicación React
 ├── .github/           # Configuración del repositorio
 ├── README.md          # Documentación principal
-└── .env.example       # Variables de entorno
+└── backend/.env       # Conexión privada a Supabase (no versionada)
 ```
 
 ## Instrucciones de Instalación
@@ -43,7 +43,7 @@ npm run dev
 ```
 
 ## Variables de Entorno
-Ver `.env.example` para configuración requerida.
+La configuración requerida se encuentra en `backend/.env`, que contiene la conexión privada a Supabase y no debe versionarse.
 
 ## Desarrollo
 - Puerto Backend: 5000

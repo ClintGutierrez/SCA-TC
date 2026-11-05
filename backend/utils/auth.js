@@ -25,15 +25,22 @@ const defaultUsers = [
     password: 'Tecnico123!',
   },
   {
-    nombre: 'Auditor OCI',
+    nombre: 'Auditor',
     email: 'auditor@tc.pe',
-    departamento: 'Órgano de Control Institucional',
+    departamento: 'Auditoría',
     rol: 'auditor',
     password: 'Auditor123!',
   },
+  {
+    nombre: 'usuario',
+    email: 'usuario@tc.pe',
+    departamento: 'Atención institucional',
+    rol: 'landing',
+    password: 'usuario123!',
+  },
 ];
 
-export const systemRoles = ['administrador', 'jefatura', 'tecnico', 'auditor'];
+export const systemRoles = ['administrador', 'jefatura', 'tecnico', 'auditor', 'landing', 'almacen'];
 
 const refreshTokenTTLDays = 7;
 
@@ -84,6 +91,7 @@ export const safeUser = (user) => ({
   email: user.email,
   departamento: user.departamento,
   rol: user.rol,
+  es_ti: user.es_ti,
   estado: user.estado,
   activo_login: user.activo_login,
   last_login: user.last_login,
@@ -114,8 +122,8 @@ export const seedDefaultUsers = async (sql) => {
     const passwordHash = await hashPassword(user.password);
 
     await sql`
-      INSERT INTO usuarios (nombre, email, departamento, rol, password_hash, activo_login, estado)
-      VALUES (${user.nombre}, ${user.email}, ${user.departamento}, ${user.rol}, ${passwordHash}, TRUE, 'activo')
+      INSERT INTO usuarios (nombre, email, departamento, rol, password_hash, activo_login, estado, es_ti)
+      VALUES (${user.nombre}, ${user.email}, ${user.departamento}, ${user.rol}, ${passwordHash}, TRUE, 'activo', ${['tecnico','jefatura'].includes(user.rol)})
       ON CONFLICT (email)
       DO UPDATE SET
         nombre = EXCLUDED.nombre,
@@ -132,4 +140,5 @@ export const ensureAuthColumns = async (sql) => {
   await sql.unsafe(`ALTER TABLE IF EXISTS usuarios ADD COLUMN IF NOT EXISTS password_hash TEXT`);
   await sql.unsafe(`ALTER TABLE IF EXISTS usuarios ADD COLUMN IF NOT EXISTS last_login TIMESTAMP`);
   await sql.unsafe(`ALTER TABLE IF EXISTS usuarios ADD COLUMN IF NOT EXISTS activo_login BOOLEAN DEFAULT TRUE`);
+  await sql.unsafe(`ALTER TABLE IF EXISTS usuarios ADD COLUMN IF NOT EXISTS es_ti BOOLEAN NOT NULL DEFAULT FALSE`);
 };

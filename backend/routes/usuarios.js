@@ -7,7 +7,7 @@ export const createUsuariosRouter = (sql) => {
 
   router.use(authenticateToken);
 
-  router.get('/', requireRole('administrador', 'jefatura'), (req, res) => usuariosController.getUsuarios(req, res, sql));
+  router.get('/', requireRole('administrador', 'jefatura', 'auditor'), (req, res) => usuariosController.getUsuarios(req, res, sql));
   router.get('/:id', requireRole('administrador', 'jefatura'), (req, res) => usuariosController.getUsuarioById(req, res, sql));
   router.post('/', requireRole('administrador'), (req, res) => usuariosController.createUsuario(req, res, sql));
   router.put('/:id', requireRole('administrador'), (req, res) => usuariosController.updateUsuario(req, res, sql));

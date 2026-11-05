@@ -39,15 +39,17 @@ export const getReporteDepreciacion = async (req, res, sql) => {
 export const getReporteAsignaciones = async (req, res, sql) => {
   try {
     const reporte = await sql`
-      SELECT 
-        u.nombre as usuario,
-        COUNT(a.id) as cantidad_equipos,
-        STRING_AGG(b.nombre, ', ') as equipos
-      FROM usuarios u
-      LEFT JOIN asignaciones a ON u.id = a.usuario_id AND a.fecha_devolucion IS NULL
-      LEFT JOIN bienes_informaticos b ON a.bien_id = b.id
-      GROUP BY u.id, u.nombre
-      ORDER BY u.nombre
+      SELECT
+        COALESCE(CONCAT(p.apellido, ', ', p.nombre), 'Personal no registrado') AS personal,
+        p.dni,
+        COUNT(a.id) AS cantidad_equipos,
+        STRING_AGG(b.nombre, ', ' ORDER BY b.nombre) AS equipos
+      FROM asignaciones a
+      LEFT JOIN personal p ON p.id = a.personal_id
+      JOIN bienes_informaticos b ON a.bien_id = b.id
+      WHERE a.fecha_devolucion IS NULL
+      GROUP BY p.id, p.apellido, p.nombre, p.dni
+      ORDER BY personal
     `;
     res.json(reporte);
   } catch (error) {

@@ -169,7 +169,7 @@ export default function Mantenimiento({ bienes, canCreate, canDelete }) {
                 </td>
                 <td className="px-6 py-3">{m.descripcion}</td>
                 <td className="px-6 py-3">{new Date(m.fecha).toLocaleDateString()}</td>
-                <td className="px-6 py-3">S/ {m.costo?.toFixed(2)}</td>
+                <td className="px-6 py-3">S/ {Number(m.costo || 0).toFixed(2)}</td>
                 <td className="px-6 py-3">{m.responsable}</td>
                 <td className="px-6 py-3">
                   <button className="text-blue-600 hover:text-blue-800 mr-4">

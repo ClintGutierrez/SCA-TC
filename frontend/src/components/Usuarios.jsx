@@ -9,13 +9,15 @@ const defaultForm = {
   estado: 'activo',
   activoLogin: true,
   password: '',
+  esTI: false,
 };
 
 const roleLabels = {
   administrador: 'Administrador',
   jefatura: 'Jefatura',
   tecnico: 'Técnico',
-  auditor: 'Auditor', // <- Nuevo
+  auditor: 'Auditor',
+  almacen: 'Almacén',
 };
 
 export default function Usuarios({ usuarios: initialUsuarios = [], onRefresh, currentUser }) {
@@ -26,7 +28,6 @@ export default function Usuarios({ usuarios: initialUsuarios = [], onRefresh, cu
   const [showForm, setShowForm] = useState(false);
   const [error, setError] = useState('');
   const [formData, setFormData] = useState(defaultForm);
-
   useEffect(() => {
     setUsuarios(initialUsuarios);
   }, [initialUsuarios]);
@@ -57,7 +58,7 @@ export default function Usuarios({ usuarios: initialUsuarios = [], onRefresh, cu
         accumulator[role] = (accumulator[role] || 0) + 1;
         return accumulator;
       },
-      { total: 0, administrador: 0, jefatura: 0, tecnico: 0, auditor: 0 }, // <- Agrega auditor: 0
+      { total: 0, administrador: 0, jefatura: 0, tecnico: 0 },
     );
   }, [usuarios]);
 
@@ -85,6 +86,7 @@ export default function Usuarios({ usuarios: initialUsuarios = [], onRefresh, cu
       estado: usuario.estado || 'activo',
       activoLogin: usuario.activo_login !== false,
       password: '',
+      esTI: usuario.es_ti === true,
     });
     setShowForm(true);
   };
@@ -102,6 +104,7 @@ export default function Usuarios({ usuarios: initialUsuarios = [], onRefresh, cu
         rol: formData.rol,
         estado: formData.estado,
         activoLogin: formData.activoLogin,
+        esTI: formData.esTI,
       };
 
       if (!editingId || formData.password) {
@@ -142,13 +145,12 @@ export default function Usuarios({ usuarios: initialUsuarios = [], onRefresh, cu
 
   return (
     <div className="space-y-6">
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {[
           { label: 'Total usuarios', value: roleStats.total, tone: 'from-blue-500 to-cyan-400' },
           { label: 'Administradores', value: roleStats.administrador, tone: 'from-violet-500 to-fuchsia-400' },
           { label: 'Jefaturas', value: roleStats.jefatura, tone: 'from-emerald-500 to-teal-400' },
           { label: 'Técnicos', value: roleStats.tecnico, tone: 'from-amber-500 to-orange-400' },
-          { label: 'Auditores', value: roleStats.auditor, tone: 'from-rose-500 to-pink-400' },
         ].map((item) => (
           <div key={item.label} className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm">
             <p className="text-sm font-medium text-slate-500">{item.label}</p>
@@ -189,6 +191,10 @@ export default function Usuarios({ usuarios: initialUsuarios = [], onRefresh, cu
           </div>
 
           <form onSubmit={handleSubmit} className="mt-6 space-y-5">
+            <label className="flex items-center gap-2 text-sm text-slate-700">
+              <input type="checkbox" name="esTI" checked={formData.esTI || ['tecnico', 'jefatura'].includes(formData.rol)} disabled={['tecnico', 'jefatura'].includes(formData.rol)} onChange={handleInputChange} />
+              Pertenece al personal de TI (puede recibir asignaciones y recepcionar pedidos)
+            </label>
             <div className="grid gap-4 md:grid-cols-2">
               <label className="block">
                 <span className="text-sm font-medium text-slate-700">Nombre</span>
@@ -210,8 +216,9 @@ export default function Usuarios({ usuarios: initialUsuarios = [], onRefresh, cu
                 <select name="rol" value={formData.rol} onChange={handleInputChange} className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:border-blue-300 focus:bg-white focus:ring-4 focus:ring-blue-100">
                   <option value="administrador">Administrador</option>
                   <option value="jefatura">Jefatura</option>
+                  <option value="almacen">Almacén</option>
                   <option value="tecnico">Técnico</option>
-                  <option value="auditor">Auditor</option>{/* <- Nueva opción */}
+                  <option value="auditor">Auditor</option>
                 </select>
               </label>
               <label className="block">
