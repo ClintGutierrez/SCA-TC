@@ -21,6 +21,7 @@ import { ensureAuthColumns, seedDefaultUsers } from './utils/auth.js';
 import { openapiSpec } from './docs/openapi.js';
 import { createGestionTIRouter } from './routes/gestionTI.js';
 import { startNotificationWorker } from './utils/notificacionesTI.js';
+import { createMigracionInventarioRouter } from './routes/migracionInventario.js';
 
 dotenv.config();
 
@@ -78,6 +79,7 @@ app.use('/api/usuarios', createUsuariosRouter(sql));
 app.use('/api/personal', createPersonalRouter(sql));
 app.use('/api/configuracion', createConfiguracionRouter(sql));
 app.use('/api/bienes', createBienesRouter(sql));
+app.use('/api/inventario', createMigracionInventarioRouter(sql));
 app.use('/api/mantenimiento', createMantenimientoRouter(sql));
 app.use('/api/depreciacion', createDepreciacionRouter(sql));
 app.use('/api/reportes', createReportesRouter(sql));

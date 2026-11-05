@@ -19,6 +19,7 @@ import LandingSolicitudTI from './components/LandingSolicitudTI';
 import SolicitudesTI from './components/SolicitudesTI';
 import AlmacenTI from './components/AlmacenTI';
 import NotificacionesTI from './components/NotificacionesTI';
+import MigrarInventario from './components/MigrarInventario';
 
 const isSolicitudPathname = (pathname = '') => /^\/(solicitud|solicitudes|landing)(\/|$)/i.test(pathname);
 
@@ -576,6 +577,10 @@ function App() {
         return <Personal personal={personal} onRefresh={fetchPersonal} currentUser={currentUser} />;
       case 'configuracion':
         return <Configuracion />;
+      case 'migrar_inventario':
+        return role === 'administrador'
+          ? <MigrarInventario onImported={fetchBienes} />
+          : <p className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm font-medium text-red-700">No tienes permisos para acceder a la migración de inventario.</p>;
       case 'solicitudes_ti':
         return <SolicitudesTI currentUser={currentUser} onOpenLanding={openLandingPage} focusId={focusSolicitud} onCreatePedido={(id) => { setPedidoSolicitud(id);setFocusPedido(null);setCurrentView('almacen_ti'); }} />;
       case 'almacen_ti':
@@ -633,6 +638,10 @@ function App() {
     configuracion: {
       title: 'Configuración del sistema',
       description: 'Parámetros institucionales, catálogos y reglas operativas',
+    },
+    migrar_inventario: {
+      title: 'Migrar Inventario',
+      description: 'Carga masiva, validación y registro de activos informáticos',
     },
     auditoria: {
       title: 'Log de auditoría',

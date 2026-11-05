@@ -102,10 +102,18 @@ export default function Sidebar({ isOpen, onViewChange, currentView, onCloseSide
 
         <div className="px-4 py-4">
           <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.3em] text-slate-500">Herramientas</p>
-          {role === 'administrador' && <button onClick={() => handleMenuClick('configuracion')} className={`flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-left text-sm transition hover:bg-white/8 hover:text-white ${currentView === 'configuracion' ? 'bg-white text-slate-950' : 'text-slate-300'}`}>
-            <span>⚙️</span>
-            <span>Configuración</span>
-          </button>}
+          {role === 'administrador' && (
+            <div className="space-y-1">
+              <button onClick={() => handleMenuClick('configuracion')} className={`flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-left text-sm transition hover:bg-white/8 hover:text-white ${currentView === 'configuracion' ? 'bg-white text-slate-950' : 'text-slate-300'}`}>
+                <span>⚙️</span>
+                <span>Configuración</span>
+              </button>
+              <button onClick={() => handleMenuClick('migrar_inventario')} className={`flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-left text-sm transition hover:bg-white/8 hover:text-white ${currentView === 'migrar_inventario' ? 'bg-white text-slate-950' : 'text-slate-300'}`}>
+                <span>📥</span>
+                <span>Migrar Inventario</span>
+              </button>
+            </div>
+          )}
         </div>
 
         <div className="border-t border-white/10 bg-white/5 p-4">

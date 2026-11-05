@@ -116,6 +116,17 @@ export const createBaja = (bienId, data) => apiClient.post(`/bajas/${bienId}`, d
   headers: { 'Content-Type': 'multipart/form-data' },
 });
 export const getBajas = () => apiClient.get('/bajas');
+export const descargarPlantillaInventario = (formato) => apiClient.get(`/inventario/plantilla/${formato}`, { responseType: 'blob' });
+export const validarMigracionInventario = (archivo) => {
+  const form = new FormData();
+  form.append('archivo', archivo);
+  return apiClient.post('/inventario/validar', form);
+};
+export const confirmarMigracionInventario = (archivo) => {
+  const form = new FormData();
+  form.append('archivo', archivo);
+  return apiClient.post('/inventario/confirmar', form);
+};
 
 // Asignaciones
 export const getAsignaciones = (params = {}) => apiClient.get('/asignaciones', { params });
