@@ -1,3 +1,4 @@
+import Select from './Select';
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
 import * as api from '../services/api';
@@ -639,7 +640,7 @@ export default function InventarioList({ bienes, onRefresh, canCreate, canEdit, 
               </div>
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-2">Tipo *</label>
-                <select
+                <Select
                   name="tipo"
                   value={formData.tipo ?? ''}
                   onChange={handleInputChange}
@@ -662,7 +663,7 @@ export default function InventarioList({ bienes, onRefresh, canCreate, canEdit, 
                   <option value="nas">NAS (Almacenamiento en Red)</option>
                   <option value="camara">Camara</option>
                   <option value="otro">Otro</option>
-                </select>
+                </Select>
                 {formErrors.tipo && <p className="mt-1 text-xs text-red-600">{formErrors.tipo}</p>}
               </div>
             </div>
@@ -737,7 +738,7 @@ export default function InventarioList({ bienes, onRefresh, canCreate, canEdit, 
                         </span>
                       </label>
                       {spec.type === 'select' ? (
-                        <select
+                        <Select
                           id={`spec-${spec.key}`}
                           value={formData.especificaciones[spec.key] ?? ''}
                           onChange={(event) => handleSpecChange(spec.key, event.target.value)}
@@ -746,7 +747,7 @@ export default function InventarioList({ bienes, onRefresh, canCreate, canEdit, 
                         >
                           <option value="">Selecciona...</option>
                           {spec.options.map((option) => <option key={option} value={option}>{option}</option>)}
-                        </select>
+                        </Select>
                       ) : (
                         <input
                           id={`spec-${spec.key}`}
@@ -901,7 +902,7 @@ export default function InventarioList({ bienes, onRefresh, canCreate, canEdit, 
               className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
-          <select
+          <Select
             aria-label="Filtrar por tipo"
             value={filtroTipo}
             onChange={(event) => {
@@ -913,7 +914,7 @@ export default function InventarioList({ bienes, onRefresh, canCreate, canEdit, 
             {TIPOS_DISPONIBLES.map(({ value, label }) => (
               <option key={value || 'all'} value={value}>{label}</option>
             ))}
-          </select>
+          </Select>
           <button
             type="button"
             onClick={() => setFiltrosAvanzados((visible) => !visible)}
@@ -933,21 +934,21 @@ export default function InventarioList({ bienes, onRefresh, canCreate, canEdit, 
             <input aria-label="Filtrar por número de serie" value={filtroSerie} onChange={(event) => setFiltroSerie(event.target.value)} placeholder="Número de serie" className="rounded-lg border border-slate-300 px-3 py-2 text-sm" />
             <input aria-label="Filtrar por marca" value={filtroMarca} onChange={(event) => setFiltroMarca(event.target.value)} placeholder="Marca" className="rounded-lg border border-slate-300 px-3 py-2 text-sm" />
             <input aria-label="Filtrar por modelo" value={filtroModelo} onChange={(event) => setFiltroModelo(event.target.value)} placeholder="Modelo" className="rounded-lg border border-slate-300 px-3 py-2 text-sm" />
-            <select aria-label="Filtrar por estado" value={filtroEstado} onChange={(event) => setFiltroEstado(event.target.value)} className="rounded-lg border border-slate-300 px-3 py-2 text-sm">
+            <Select aria-label="Filtrar por estado" value={filtroEstado} onChange={(event) => setFiltroEstado(event.target.value)} className="rounded-lg border border-slate-300 px-3 py-2 text-sm">
               <option value="">Todos los estados</option>
               <option value="activo">Activo</option>
               <option value="asignado">Asignado</option>
               <option value="mantenimiento">Mantenimiento</option>
               <option value="baja">Baja</option>
-            </select>
+            </Select>
             <input aria-label="Filtrar por ubicación" value={filtroUbicacion} onChange={(event) => setFiltroUbicacion(event.target.value)} placeholder="Ubicación o sede" className="rounded-lg border border-slate-300 px-3 py-2 text-sm" />
             <input aria-label="Filtrar por orden de compra" value={filtroOrdenCompra} onChange={(event) => setFiltroOrdenCompra(event.target.value)} placeholder="Orden de compra" className="rounded-lg border border-slate-300 px-3 py-2 text-sm" />
             <input aria-label="Filtrar por dirección MAC" value={filtroMac} onChange={(event) => setFiltroMac(event.target.value)} placeholder="Dirección MAC" className="rounded-lg border border-slate-300 px-3 py-2 text-sm" />
-            <select aria-label="Filtrar por asignación" value={filtroAsignacion} onChange={(event) => setFiltroAsignacion(event.target.value)} className="rounded-lg border border-slate-300 px-3 py-2 text-sm">
+            <Select aria-label="Filtrar por asignación" value={filtroAsignacion} onChange={(event) => setFiltroAsignacion(event.target.value)} className="rounded-lg border border-slate-300 px-3 py-2 text-sm">
               <option value="">Asignación: todos</option>
               <option value="disponible">Sin asignar</option>
               <option value="asignado">Con usuario asignado</option>
-            </select>
+            </Select>
             <input aria-label="Costo mínimo" type="number" min="0" value={filtroCostoMin} onChange={(event) => setFiltroCostoMin(event.target.value)} placeholder="Costo mínimo S/" className="rounded-lg border border-slate-300 px-3 py-2 text-sm" />
             <input aria-label="Costo máximo" type="number" min="0" value={filtroCostoMax} onChange={(event) => setFiltroCostoMax(event.target.value)} placeholder="Costo máximo S/" className="rounded-lg border border-slate-300 px-3 py-2 text-sm" />
             <label className="text-xs font-medium text-slate-500">
@@ -958,11 +959,11 @@ export default function InventarioList({ bienes, onRefresh, canCreate, canEdit, 
               Adquisición hasta
               <input aria-label="Fecha de adquisición hasta" type="date" value={filtroFechaHasta} onChange={(event) => setFiltroFechaHasta(event.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm font-normal text-slate-700" />
             </label>
-            <select aria-label="Filtrar por garantía" value={filtroGarantia} onChange={(event) => setFiltroGarantia(event.target.value)} className="rounded-lg border border-slate-300 px-3 py-2 text-sm">
+            <Select aria-label="Filtrar por garantía" value={filtroGarantia} onChange={(event) => setFiltroGarantia(event.target.value)} className="rounded-lg border border-slate-300 px-3 py-2 text-sm">
               <option value="">Garantía: todos</option>
               <option value="con_garantia">Con garantía</option>
               <option value="sin_garantia">Sin garantía</option>
-            </select>
+            </Select>
             <input aria-label="Filtrar por especificación técnica" value={filtroEspecificacion} onChange={(event) => setFiltroEspecificacion(event.target.value)} placeholder="Cualquier especificación técnica" className="rounded-lg border border-slate-300 px-3 py-2 text-sm sm:col-span-2 lg:col-span-4" />
             {filtroTipo && SPECS_POR_TIPO[filtroTipo] && (
               <div className="sm:col-span-2 lg:col-span-4">
@@ -974,7 +975,7 @@ export default function InventarioList({ bienes, onRefresh, canCreate, canEdit, 
                     <div key={spec.key}>
                       <label htmlFor={`filter-spec-${spec.key}`} className="sr-only">{spec.label}</label>
                       {spec.options ? (
-                        <select
+                        <Select
                           id={`filter-spec-${spec.key}`}
                           aria-label={spec.label}
                           value={filtrosTecnicos[spec.key] || ''}
@@ -985,7 +986,7 @@ export default function InventarioList({ bienes, onRefresh, canCreate, canEdit, 
                           {spec.options.map((option) => (
                             <option key={option} value={option}>{spec.label}: {option}</option>
                           ))}
-                        </select>
+                        </Select>
                       ) : (
                         <input
                           id={`filter-spec-${spec.key}`}

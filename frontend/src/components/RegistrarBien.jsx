@@ -1,3 +1,4 @@
+import Select from './Select';
 import { useState } from 'react';
 import * as api from '../services/api';
 import { TIPOS, getTipo, GUIA_ESCANER, sugerirClasificacionEscaner } from '../utils/camposPorTipo';
@@ -228,12 +229,12 @@ export default function RegistrarBien({ onSaved, onCancel }) {
             <input type="text" placeholder="SN-987654321-TC" {...campoProps('numeroSerie')} />
           </Campo>
           <Campo label="Tipo de Bien" obligatorio error={errores.tipo}>
-            <select {...campoProps('tipo')}>
+            <Select {...campoProps('tipo')}>
               <option value="">Selecciona tipo</option>
               {TIPOS.map((tipo) => (
                 <option key={tipo.value} value={tipo.value}>{tipo.label}</option>
               ))}
-            </select>
+            </Select>
           </Campo>
         </div>
 
@@ -333,12 +334,12 @@ export default function RegistrarBien({ onSaved, onCancel }) {
                     ))}
                   </div>
                 ) : campo.options ? (
-                  <select {...detalleProps(campo)}>
+                  <Select {...detalleProps(campo)}>
                     <option value="">Selecciona</option>
                     {campo.options.map((opcion) => (
                       <option key={opcion} value={opcion}>{opcion}</option>
                     ))}
-                  </select>
+                  </Select>
                 ) : (
                   <input
                     type={campo.type || 'text'}

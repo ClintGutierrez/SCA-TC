@@ -1,4 +1,5 @@
-import { useEffect, useId, useMemo, useRef, useState } from 'react';
+import Select from './Select';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import * as api from '../services/api';
 import VinculoLaboral, { EstadoVinculo } from './VinculoLaboral';
 
@@ -57,60 +58,14 @@ function FormSection({ number, icon, title, description, columns = 'xl:grid-cols
 }
 
 function ManagerSelect({ people, value, onSelect, error, onBlur, disabled }) {
-  const uid = useId();
-  const container = useRef(null);
-  const [open, setOpen] = useState(false);
-  const [query, setQuery] = useState('');
-  const [activeIndex, setActiveIndex] = useState(0);
-  const selected = people.find((p) => String(p.id) === String(value));
-  const options = people.filter((p) => p.estado === 'activo' && normalize(fullName(p) + ' ' + p.dni + ' ' + p.correo_institucional).includes(normalize(query)));
-
-  useEffect(() => {
-    const close = (event) => { if (!container.current?.contains(event.target)) setOpen(false); };
-    document.addEventListener('pointerdown', close);
-    return () => document.removeEventListener('pointerdown', close);
-  }, []);
-  useEffect(() => {
-    if (open) container.current?.querySelector('[aria-selected="true"]')?.scrollIntoView({ block: 'nearest' });
-  }, [activeIndex, open]);
-
-  const choose = (person) => { onSelect(person); setOpen(false); setQuery(''); setActiveIndex(0); };
-  return <div ref={container} className="relative" onBlur={(event) => {
-    if (!event.currentTarget.contains(event.relatedTarget)) { setOpen(false); onBlur(); }
-  }}>
-    <div className="relative">
-      <input id="personal-jefe_inmediato" name="jefe_inmediato" role="combobox" aria-autocomplete="list"
-        aria-expanded={open} aria-controls={uid + '-list'} aria-activedescendant={open && options[activeIndex] ? uid + '-' + activeIndex : undefined}
-        aria-invalid={Boolean(error)} aria-describedby={error ? 'personal-jefe_inmediato-help' : undefined}
-        autoComplete="off" disabled={disabled} placeholder="Buscar por nombre o DNI"
-        value={open ? query : selected ? fullName(selected) : value ? 'Jefe no disponible; selecciona otro' : ''}
-        onFocus={() => { setOpen(true); setQuery(''); setActiveIndex(0); }}
-        onChange={(event) => { setQuery(event.target.value); setOpen(true); setActiveIndex(0); if (value) onSelect(null); }}
-        onKeyDown={(event) => {
-          if (event.key === 'Escape') { event.preventDefault(); setOpen(false); return; }
-          if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
-            event.preventDefault(); setOpen(true);
-            setActiveIndex((index) => Math.max(0, Math.min(options.length - 1, index + (event.key === 'ArrowDown' ? 1 : -1))));
-          }
-          if (event.key === 'Enter' && open) { event.preventDefault(); if (options[activeIndex]) choose(options[activeIndex]); }
-        }} className={cx(inputClass(error), 'pr-11')} />
-      {value ? <button type="button" disabled={disabled} onClick={() => choose(null)} aria-label="Quitar jefe seleccionado"
-        className="absolute bottom-0 right-0 flex h-11 w-10 items-center justify-center text-slate-400 hover:text-slate-700"><Icon name="close" className="h-4 w-4" /></button>
-        : <span className="pointer-events-none absolute bottom-0 right-0 flex h-11 w-10 items-center justify-center text-slate-400"><Icon name="search" className="h-4 w-4" /></span>}
-    </div>
-    {open && <div className="absolute left-0 right-0 z-30 mt-2 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl">
-      <div id={uid + '-list'} role="listbox" aria-label="Jefes disponibles" className="max-h-64 overflow-y-auto p-1.5">
-        {options.map((p, index) => <button key={p.id} id={uid + '-' + index} type="button" role="option" aria-selected={activeIndex === index}
-          onPointerDown={(event) => event.preventDefault()} onClick={() => choose(p)} onMouseEnter={() => setActiveIndex(index)}
-          className={cx('block w-full rounded-lg px-3 py-2.5 text-left', index === activeIndex ? 'bg-blue-50' : 'hover:bg-slate-50')}>
-          <span className="block text-sm font-medium text-slate-900">{fullName(p)}</span>
-          <span className="mt-1 block break-all text-xs text-slate-500">DNI {p.dni} · {p.correo_institucional}</span>
-        </button>)}
-        {!options.length && <p className="px-3 py-4 text-sm leading-6 text-slate-500">{people.some((p) => p.estado === 'activo')
-          ? 'No encontramos coincidencias. Prueba con otro nombre o DNI.' : 'Aún no hay personal activo para seleccionar. Puedes asignar un jefe después.'}</p>}
-      </div>
-    </div>}
-  </div>;
+  const selected = people.find((person) => String(person.id) === String(value));
+  return <Select id="personal-jefe_inmediato" name="jefe_inmediato" value={value} disabled={disabled}
+    searchable searchPlaceholder="Buscar por nombre o DNI" aria-invalid={Boolean(error)} aria-describedby="personal-jefe_inmediato-help"
+    onBlur={onBlur} onChange={(event) => onSelect(people.find((person) => String(person.id) === event.target.value) || null)} className={inputClass(error)}>
+    <option value="">Sin jefe asignado</option>
+    {value && (!selected || selected.estado !== 'activo') && <option value={value} disabled>Jefe no disponible; selecciona otro</option>}
+    {people.filter((person) => person.estado === 'activo').map((person) => <option key={person.id} value={person.id} data-search={person.correo_institucional}>{fullName(person)} · DNI {person.dni}</option>)}
+  </Select>;
 }
 
 function validateForm(form, people, editingId) {
@@ -285,7 +240,7 @@ export default function Personal({ personal: initialPersonal = [], onRefresh, cu
           {field('numero_celular', 'Celular', { type: 'tel', placeholder: 'Ej. 999 888 777', maxLength: 20, autoComplete: 'tel', hint: 'Opcional. Incluye el código de país si corresponde.' })}
         </FormSection>
         <FormSection number="2" icon="location" title="Ubicación institucional" description="Indica dónde desarrolla sus actividades. Estos datos son opcionales." columns="xl:grid-cols-4">
-          <Field name="sede" label="Sede"><select id="personal-sede" name="sede" value={formData.sede} onChange={changeField} className={inputClass()}><option value="">Selecciona una sede</option>{SEDES.map((s) => <option key={s}>{s}</option>)}</select></Field>
+          <Field name="sede" label="Sede"><Select id="personal-sede" name="sede" value={formData.sede} onChange={changeField} className={inputClass()}><option value="">Selecciona una sede</option>{SEDES.map((s) => <option key={s}>{s}</option>)}</Select></Field>
           {field('area', 'Área', { placeholder: 'Ej. Tecnología de la Información', maxLength: 150 })}
           {field('oficina', 'Oficina', { placeholder: 'Ej. Soporte técnico', maxLength: 150 })}
           {field('piso', 'Piso', { placeholder: 'Ej. 2.º piso', maxLength: 50 })}
@@ -293,11 +248,11 @@ export default function Personal({ personal: initialPersonal = [], onRefresh, cu
         <FormSection number="3" icon="briefcase" title="Datos laborales" description="Cargo, régimen y jefatura del trabajador.">
           {field('cargo', 'Cargo', { placeholder: 'Ej. Analista de sistemas', maxLength: 150 })}
           <Field name="regimen_laboral" label="Régimen laboral" required error={fieldErrors.regimen_laboral} hint={editingId ? 'Los cambios de régimen se registran desde Vínculo laboral.' : 'Después de guardar podrás registrar sus fechas de vigencia.'}>
-            <select id="personal-regimen_laboral" name="regimen_laboral" required value={formData.regimen_laboral} onChange={changeField} onBlur={() => validateField('regimen_laboral')} disabled={Boolean(editingId)}
-              aria-invalid={Boolean(fieldErrors.regimen_laboral)} aria-describedby="personal-regimen_laboral-help" className={inputClass(fieldErrors.regimen_laboral)}><option value="">Selecciona un régimen</option>{REGIMENES.map((r) => <option key={r}>{r}</option>)}</select>
+            <Select id="personal-regimen_laboral" name="regimen_laboral" required value={formData.regimen_laboral} onChange={changeField} onBlur={() => validateField('regimen_laboral')} disabled={Boolean(editingId)}
+              aria-invalid={Boolean(fieldErrors.regimen_laboral)} aria-describedby="personal-regimen_laboral-help" className={inputClass(fieldErrors.regimen_laboral)}><option value="">Selecciona un régimen</option>{REGIMENES.map((r) => <option key={r}>{r}</option>)}</Select>
           </Field>
           <Field name="estado" label="Estado del trabajador" hint="Este estado es independiente de la vigencia de su vínculo.">
-            <select id="personal-estado" name="estado" value={formData.estado} onChange={changeField} className={inputClass()}><option value="activo">Activo</option><option value="inactivo">Inactivo</option></select>
+            <Select id="personal-estado" name="estado" value={formData.estado} onChange={changeField} className={inputClass()}><option value="activo">Activo</option><option value="inactivo">Inactivo</option></Select>
           </Field>
           <Field name="jefe_inmediato" label="Jefe inmediato" error={fieldErrors.jefe_inmediato} hint="Opcional. Para locadores y practicantes se requiere al solicitar una asignación." className="xl:col-span-2">
             <ManagerSelect people={personal.filter((p) => String(p.id) !== String(editingId))} value={formData.jefe_inmediato} onSelect={selectManager} error={fieldErrors.jefe_inmediato} onBlur={() => validateField('jefe_inmediato')} disabled={saving} />
@@ -325,7 +280,7 @@ export default function Personal({ personal: initialPersonal = [], onRefresh, cu
             <input aria-label="Buscar personal" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar por nombre, DNI, área o sede" className={cx(inputClass(), 'mt-0 pl-10 pr-10')} />
             {search && <button type="button" aria-label="Limpiar búsqueda" onClick={() => setSearch('')} className="absolute inset-y-0 right-2 flex w-8 items-center justify-center text-slate-400 hover:text-slate-700"><Icon name="close" className="h-4 w-4" /></button>}
           </div>
-          <select aria-label="Filtrar por estado del trabajador" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} className={cx(inputClass(), 'mt-0 sm:w-52')}><option value="">Todos los estados</option><option value="activo">Trabajadores activos</option><option value="inactivo">Trabajadores inactivos</option></select>
+          <Select aria-label="Filtrar por estado del trabajador" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} className={cx(inputClass(), 'mt-0 sm:w-52')}><option value="">Todos los estados</option><option value="activo">Trabajadores activos</option><option value="inactivo">Trabajadores inactivos</option></Select>
         </div>}
       </div>
       {loadError && <div role="alert" className="mx-5 mb-5 rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700 sm:mx-6">{loadError}<button type="button" onClick={loadPersonal} className="ml-3 inline-flex items-center gap-1.5 font-semibold underline"><Icon name="refresh" className="h-3 w-3" />Recargar</button></div>}

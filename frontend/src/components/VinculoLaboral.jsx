@@ -1,3 +1,4 @@
+import Select from './Select';
 import { useEffect, useState } from 'react';
 import * as api from '../services/api';
 
@@ -94,9 +95,9 @@ export default function VinculoLaboral({ personalId, currentUser, onClose, onSav
         <h3 className="text-lg font-semibold text-slate-900">{editing ? 'Actualizar vínculo laboral' : 'Registrar vínculo laboral'}</h3>
         <fieldset disabled={saving} className="mt-5 grid gap-5 md:grid-cols-2">
           <label className="text-sm font-medium text-slate-700">Tipo de vínculo
-            <select required name="tipo_vinculo" value={form.tipo_vinculo} onChange={change} className={inputClass}>{REGIMENES.map((r) => <option key={r}>{r}</option>)}</select></label>
+            <Select required name="tipo_vinculo" value={form.tipo_vinculo} onChange={change} className={inputClass}>{REGIMENES.map((r) => <option key={r}>{r}</option>)}</Select></label>
           <label className="text-sm font-medium text-slate-700">Estado del registro
-            <select name="estado" value={form.estado} onChange={change} className={inputClass}><option value="vigente">Habilitado</option><option value="finalizado">Finalizado</option></select></label>
+            <Select name="estado" value={form.estado} onChange={change} className={inputClass}><option value="vigente">Habilitado</option><option value="finalizado">Finalizado</option></Select></label>
           <label className="text-sm font-medium text-slate-700">Fecha de inicio
             <input required type="date" name="fecha_inicio" value={form.fecha_inicio} onChange={change} className={inputClass} /></label>
           <label className="text-sm font-medium text-slate-700">Fecha de término {form.estado === 'vigente' && '(opcional)'}

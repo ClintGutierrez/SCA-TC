@@ -1,3 +1,4 @@
+import Select from './Select';
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import * as api from '../services/api';
 
@@ -843,7 +844,7 @@ export default function Auditoria() {
 
           <div>
             <label className="mb-2 block text-sm font-medium text-slate-700">Usuario</label>
-            <select
+            <Select
               name="usuario"
               value={filters.usuario}
               onChange={handleFilterChange}
@@ -855,12 +856,12 @@ export default function Auditoria() {
                   {usuario.nombre} {usuario.email ? `(${usuario.email})` : ''}
                 </option>
               ))}
-            </select>
+            </Select>
           </div>
 
           <div>
             <label className="mb-2 block text-sm font-medium text-slate-700">Módulo</label>
-            <select
+            <Select
               name="modulo"
               value={filters.modulo}
               onChange={handleFilterChange}
@@ -869,12 +870,12 @@ export default function Auditoria() {
               {visibleModuleOptions.map((option) => (
                 <option key={option} value={option}>{option === 'Todos' ? 'Todos' : normalizeModulo(option)}</option>
               ))}
-            </select>
+            </Select>
           </div>
 
           <div>
             <label className="mb-2 block text-sm font-medium text-slate-700">Acción</label>
-            <select
+            <Select
               name="accion"
               value={filters.accion}
               onChange={handleFilterChange}
@@ -883,7 +884,7 @@ export default function Auditoria() {
               {visibleActionOptions.map((option) => (
                 <option key={option} value={option}>{option}</option>
               ))}
-            </select>
+            </Select>
           </div>
         </div>
 

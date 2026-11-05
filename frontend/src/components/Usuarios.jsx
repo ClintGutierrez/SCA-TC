@@ -1,3 +1,4 @@
+import Select from './Select';
 import { useEffect, useMemo, useState } from 'react';
 import * as api from '../services/api';
 
@@ -213,20 +214,20 @@ export default function Usuarios({ usuarios: initialUsuarios = [], onRefresh, cu
               </label>
               <label className="block">
                 <span className="text-sm font-medium text-slate-700">Rol</span>
-                <select name="rol" value={formData.rol} onChange={handleInputChange} className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:border-blue-300 focus:bg-white focus:ring-4 focus:ring-blue-100">
+                <Select name="rol" value={formData.rol} onChange={handleInputChange} className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:border-blue-300 focus:bg-white focus:ring-4 focus:ring-blue-100">
                   <option value="administrador">Administrador</option>
                   <option value="jefatura">Jefatura</option>
                   <option value="almacen">Almacén</option>
                   <option value="tecnico">Técnico</option>
                   <option value="auditor">Auditor</option>
-                </select>
+                </Select>
               </label>
               <label className="block">
                 <span className="text-sm font-medium text-slate-700">Estado</span>
-                <select name="estado" value={formData.estado} onChange={handleInputChange} className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:border-blue-300 focus:bg-white focus:ring-4 focus:ring-blue-100">
+                <Select name="estado" value={formData.estado} onChange={handleInputChange} className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:border-blue-300 focus:bg-white focus:ring-4 focus:ring-blue-100">
                   <option value="activo">Activo</option>
                   <option value="inactivo">Inactivo</option>
-                </select>
+                </Select>
               </label>
             </div>
 

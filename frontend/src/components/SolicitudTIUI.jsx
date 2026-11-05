@@ -1,3 +1,4 @@
+import Select from './Select';
 export const botonPrincipalTI = 'inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-blue-700 px-5 py-3 text-sm font-semibold text-white transition hover:bg-blue-800 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-200 disabled:cursor-not-allowed disabled:opacity-50';
 export const botonSecundarioTI = 'inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-100 disabled:cursor-not-allowed disabled:opacity-50';
 
@@ -27,9 +28,10 @@ export function IconoTI({ name = 'documento', className = 'h-5 w-5' }) {
 
 export function CampoTI({ id, label, error, hint, required, as: Tag = 'input', className = '', children, ...props }) {
   const description = [hint && `${id}-ayuda`, error && `${id}-error`].filter(Boolean).join(' ') || undefined;
+  const Control = Tag === 'select' ? Select : Tag;
   return <div className={className}>
     <label htmlFor={id} className="mb-2 block text-sm font-semibold text-slate-800">{label}{required && <span className="ml-1 text-blue-700" aria-hidden="true">*</span>}</label>
-    <Tag id={id} required={required} aria-invalid={Boolean(error)} aria-describedby={description} className={`w-full rounded-xl border bg-white px-3.5 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:ring-4 disabled:bg-slate-50 ${error ? 'border-rose-500 focus:border-rose-500 focus:ring-rose-100' : 'border-slate-300 hover:border-slate-400 focus:border-blue-600 focus:ring-blue-100'}`} {...props}>{children}</Tag>
+    <Control id={id} required={required} aria-invalid={Boolean(error)} aria-describedby={description} className={`w-full rounded-xl border bg-white px-3.5 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:ring-4 disabled:bg-slate-50 ${error ? 'border-rose-500 focus:border-rose-500 focus:ring-rose-100' : 'border-slate-300 hover:border-slate-400 focus:border-blue-600 focus:ring-blue-100'}`} {...props}>{children}</Control>
     {hint && <p id={`${id}-ayuda`} className="mt-2 text-xs leading-5 text-slate-500">{hint}</p>}
     {error && <p id={`${id}-error`} className="mt-2 text-sm text-rose-700">{error}</p>}
   </div>;

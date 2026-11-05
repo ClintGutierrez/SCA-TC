@@ -219,10 +219,17 @@ function App() {
     return response.data.user;
   };
 
+  const openDashboardModule = (view, id) => {
+    if (view === 'solicitudes_ti') setFocusSolicitud(id || null);
+    if (view === 'almacen_ti') { setPedidoSolicitud(null); setFocusPedido(id || null); }
+    if (view === 'inventario') setMostrarRegistro(false);
+    setCurrentView(view);
+  };
+
   const renderView = () => {
     switch (currentView) {
       case 'dashboard':
-        return <Dashboard bienes={bienes} currentUser={currentUser} />;
+        return <Dashboard currentUser={currentUser} onNavigate={openDashboardModule} onInventoryLoaded={setBienes} />;
       case 'inventario':
         return (
           <div className="space-y-6">
@@ -281,7 +288,7 @@ function App() {
       case 'auditoria':
         return <Auditoria />;
       default:
-        return <Dashboard bienes={bienes} currentUser={currentUser} />;
+        return <Dashboard currentUser={currentUser} onNavigate={openDashboardModule} onInventoryLoaded={setBienes} />;
     }
   };
 
@@ -390,7 +397,7 @@ function App() {
         />
 
         <main className="min-w-0 flex-1">
-          <div className="mb-6 rounded-[28px] border border-white/70 bg-white/70 px-6 py-5 shadow-[0_20px_60px_rgba(15,23,42,0.08)] backdrop-blur">
+          {currentView !== 'dashboard' && <div className="mb-6 rounded-[28px] border border-white/70 bg-white/70 px-6 py-5 shadow-[0_20px_60px_rgba(15,23,42,0.08)] backdrop-blur">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
               <div>
                 <p className="text-sm font-semibold uppercase tracking-[0.28em] text-blue-600">Tribunal Constitucional del Perú</p>
@@ -409,7 +416,7 @@ function App() {
                 </div>
               </div>
             </div>
-          </div>
+          </div>}
 
           <div className="min-h-[calc(100vh-210px)] rounded-[32px] border border-white/70 bg-white/60 p-4 shadow-[0_25px_80px_rgba(15,23,42,0.08)] backdrop-blur lg:p-6">
             {loading ? (

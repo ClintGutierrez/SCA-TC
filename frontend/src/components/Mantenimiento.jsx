@@ -1,3 +1,4 @@
+import Select from './Select';
 import { useState } from 'react';
 
 export default function Mantenimiento({ bienes, canCreate, canDelete }) {
@@ -57,7 +58,7 @@ export default function Mantenimiento({ bienes, canCreate, canDelete }) {
         <div className="bg-white p-6 rounded-lg shadow mb-8">
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
-              <select
+              <Select
                 name="bienId"
                 value={formData.bienId}
                 onChange={handleInputChange}
@@ -70,9 +71,9 @@ export default function Mantenimiento({ bienes, canCreate, canDelete }) {
                     {bien.nombre} ({bien.tipo})
                   </option>
                 ))}
-              </select>
+              </Select>
 
-              <select
+              <Select
                 name="tipo"
                 value={formData.tipo}
                 onChange={handleInputChange}
@@ -82,7 +83,7 @@ export default function Mantenimiento({ bienes, canCreate, canDelete }) {
                 <option value="preventivo">Preventivo</option>
                 <option value="correctivo">Correctivo</option>
                 <option value="repotenciacion">Repotenciación</option>
-              </select>
+              </Select>
             </div>
 
             <textarea

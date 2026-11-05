@@ -1,3 +1,4 @@
+import Select from './Select';
 import { useEffect, useMemo, useState } from 'react';
 import * as api from '../services/api';
 
@@ -155,30 +156,30 @@ export default function Movimientos({ bienes = [], personal = [], canManage = fa
             <label className="block text-sm font-medium text-slate-700">
               Buscar bien
               <input value={searchBien} onChange={(event) => setSearchBien(event.target.value)} placeholder="Código patrimonial, nombre o serie" className={inputClass} />
-              <select required name="bien_id" value={form.bien_id} onChange={setField} className={inputClass}>
+              <Select required name="bien_id" value={form.bien_id} onChange={setField} className={inputClass}>
                 <option value="">Selecciona un bien {type === 'cambio' || type === 'retiro' ? 'asignado' : 'disponible'}</option>
                 {availableAssets.map((asset) => <option key={asset.id} value={asset.id}>{asset.codigo_patrimonial || 'Sin código'} · {asset.nombre} · {asset.numero_serie || 'Sin serie'}</option>)}
-              </select>
+              </Select>
             </label>
 
             {needsPerson && (
               <label className="block text-sm font-medium text-slate-700">
                 {type === 'cambio' || type === 'retiro' ? 'Responsable actual del equipo' : 'Trabajador responsable'}
                 <input value={searchPeople} onChange={(event) => setSearchPeople(event.target.value)} placeholder="Buscar por nombre, DNI o régimen" className={inputClass} />
-                <select required name="personal_id" value={form.personal_id} onChange={setField} className={inputClass}>
+                <Select required name="personal_id" value={form.personal_id} onChange={setField} className={inputClass}>
                   <option value="">Selecciona personal activo</option>
                   {activePeople.map((person) => <option key={person.id} value={person.id}>{person.apellido}, {person.nombre} · {person.dni} · {person.regimen_laboral}</option>)}
-                </select>
+                </Select>
               </label>
             )}
 
             {type === 'cambio' && (
               <label className="block text-sm font-medium text-slate-700">
                 Equipo de reemplazo disponible
-                <select required name="bien_reemplazo_id" value={form.bien_reemplazo_id} onChange={setField} className={inputClass}>
+                <Select required name="bien_reemplazo_id" value={form.bien_reemplazo_id} onChange={setField} className={inputClass}>
                   <option value="">Selecciona el equipo sustituto</option>
                   {replacementAssets.map((asset) => <option key={asset.id} value={asset.id}>{asset.codigo_patrimonial || 'Sin código'} · {asset.nombre} · {asset.numero_serie || 'Sin serie'}</option>)}
-                </select>
+                </Select>
               </label>
             )}
 
@@ -209,10 +210,10 @@ export default function Movimientos({ bienes = [], personal = [], canManage = fa
       <section className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm">
         <div className="flex flex-col justify-between gap-3 border-b border-slate-100 p-5 sm:flex-row sm:items-center">
           <div><h3 className="text-lg font-semibold text-slate-950">Historial de movimientos</h3><p className="text-sm text-slate-500">{rows.length} registros</p></div>
-          <select aria-label="Filtrar tipo de movimiento" value={filter} onChange={(event) => setFilter(event.target.value)} className="rounded-xl border border-slate-200 px-3 py-2 text-sm">
+          <Select aria-label="Filtrar tipo de movimiento" value={filter} onChange={(event) => setFilter(event.target.value)} className="rounded-xl border border-slate-200 px-3 py-2 text-sm">
             <option value="">Todos los movimientos</option>
             {TYPES.map(([key, label]) => <option key={key} value={key}>{label}</option>)}
-          </select>
+          </Select>
         </div>
         {loading ? <p className="p-8 text-center text-sm text-slate-500">Cargando movimientos...</p> : (
           <div className="overflow-x-auto">
