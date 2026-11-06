@@ -24,6 +24,7 @@ export default function Movimientos({ bienes = [], personal = [], canManage = fa
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
+  const [activeAssignments, setActiveAssignments] = useState([]);
 
   const load = async () => {
     setLoading(true);
@@ -38,6 +39,17 @@ export default function Movimientos({ bienes = [], personal = [], canManage = fa
     }
   };
   useEffect(() => { load(); }, [filter]);
+  useEffect(() => {
+    const loadAssignments = async () => {
+      try {
+        const response = await api.getAsignaciones({ active: true });
+        setActiveAssignments(response.data || []);
+      } catch {
+        setActiveAssignments([]);
+      }
+    };
+    loadAssignments();
+  }, []);
 
   const availableAssets = useMemo(() => bienes.filter((asset) => {
     const valid = type === 'retiro' || type === 'cambio' || type === 'reasignacion' ? asset.estado === 'asignado' : asset.estado === 'activo';
@@ -53,6 +65,11 @@ export default function Movimientos({ bienes = [], personal = [], canManage = fa
     && `${person.nombre} ${person.apellido} ${person.dni} ${person.regimen_laboral}`.toLowerCase().includes(searchPeople.trim().toLowerCase())), [personal, searchPeople, type]);
   const selectedPerson = personal.find((person) => String(person.id) === String(form.personal_id));
   const nextRecipient = personal.find((person) => String(person.id) === String(form.personal_destino_id));
+  const currentAssignedPerson = useMemo(() => {
+    if (type !== 'reasignacion' || !form.bien_id) return selectedPerson;
+    const assignment = activeAssignments.find((item) => Number(item.bien_id) === Number(form.bien_id) && !item.fecha_devolucion);
+    return personal.find((person) => String(person.id) === String(assignment?.personal_id || form.personal_id));
+  }, [activeAssignments, form.bien_id, form.personal_id, personal, type, selectedPerson]);
   const recipient = type === 'reasignacion' ? nextRecipient : selectedPerson;
   const requiresApproval = type !== 'retiro' && recipient && !DIRECT_REGIMES.includes(recipient.regimen_laboral);
   const managerIncomplete = requiresApproval && (!recipient.jefe_inmediato || !recipient.correo_jefe);
@@ -119,12 +136,25 @@ export default function Movimientos({ bienes = [], personal = [], canManage = fa
     }
   };
 
+  useEffect(() => {
+    if (type !== 'reasignacion' || !form.bien_id) return;
+    const activeAssignment = activeAssignments.find((item) => Number(item.bien_id) === Number(form.bien_id) && !item.fecha_devolucion);
+    if (!activeAssignment) {
+      setForm((current) => ({ ...current, personal_id: '' }));
+      return;
+    }
+    const nextResponsibleId = String(activeAssignment.personal_id ?? '');
+    if (String(form.personal_id) !== nextResponsibleId) {
+      setForm((current) => ({ ...current, personal_id: nextResponsibleId }));
+    }
+  }, [activeAssignments, form.bien_id, form.personal_id, type]);
+
   const setField = (event) => {
     const { name, value } = event.target;
     setForm((current) => ({
       ...current,
       [name]: value,
-      ...(name === 'bien_id' ? { bien_reemplazo_id: '' } : {}),
+      ...(name === 'bien_id' ? { bien_reemplazo_id: '', personal_id: '' } : {}),
     }));
   };
   const needsPerson = ['asignacion', 'cambio', 'prestamo', 'reasignacion'].includes(type) || type === 'retiro';
@@ -178,11 +208,12 @@ export default function Movimientos({ bienes = [], personal = [], canManage = fa
               <>
                 <label className="block text-sm font-medium text-slate-700">
                   Responsable actual
-                  <input value={searchPeople} onChange={(event) => setSearchPeople(event.target.value)} placeholder="Buscar por nombre, DNI o régimen" className={inputClass} />
-                  <select required name="personal_id" value={form.personal_id} onChange={setField} className={inputClass}>
-                    <option value="">Selecciona el responsable actual</option>
-                    {activePeople.map((person) => <option key={person.id} value={person.id}>{person.apellido}, {person.nombre} · {person.dni} · {person.regimen_laboral}</option>)}
-                  </select>
+                  <input
+                    readOnly
+                    value={currentAssignedPerson ? `${currentAssignedPerson.apellido}, ${currentAssignedPerson.nombre}` : ''}
+                    placeholder="Selecciona un bien asignado"
+                    className={`${inputClass} cursor-default bg-slate-100 text-slate-700`}
+                  />
                 </label>
                 <label className="block text-sm font-medium text-slate-700">
                   Nuevo responsable
