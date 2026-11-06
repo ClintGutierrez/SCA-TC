@@ -168,12 +168,11 @@ const create = async (req, res, sql) => {
         e.status = 400;
         throw e;
       }
-      const direct = tipo === 'retiro' || (recipient && DIRECT_REGIMES.has(recipient.regimen_laboral));
-      if (recipient && !direct && (!recipient.jefe_inmediato || !recipient.correo_jefe)) {
-        const e = new Error('Registra el jefe inmediato y su correo en el módulo Personal para solicitar autorización');
-        e.status = 400;
-        throw e;
-      }
+      const direct = tipo === 'retiro' || (recipient && (
+        DIRECT_REGIMES.has(recipient.regimen_laboral)
+        || !recipient.jefe_inmediato
+        || !recipient.correo_jefe
+      ));
       const estado = direct ? 'aprobado' : 'pendiente';
       const [created] = await tx`INSERT INTO movimientos_patrimoniales
         (tipo,bien_id,bien_reemplazo_id,personal_id,personal_destino_id,estado,fecha_movimiento,fecha_fin,motivo,observaciones,creado_por,datos,vinculo_laboral_id)

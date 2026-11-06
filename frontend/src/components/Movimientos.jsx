@@ -71,8 +71,9 @@ export default function Movimientos({ bienes = [], personal = [], canManage = fa
     return personal.find((person) => String(person.id) === String(assignment?.personal_id || form.personal_id));
   }, [activeAssignments, form.bien_id, form.personal_id, personal, type, selectedPerson]);
   const recipient = type === 'reasignacion' ? nextRecipient : selectedPerson;
-  const requiresApproval = type !== 'retiro' && recipient && !DIRECT_REGIMES.includes(recipient.regimen_laboral);
-  const managerIncomplete = requiresApproval && (!recipient.jefe_inmediato || !recipient.correo_jefe);
+  const hasSupervisorContact = Boolean(recipient && recipient.jefe_inmediato && recipient.correo_jefe);
+  const requiresApproval = type !== 'retiro' && recipient && !DIRECT_REGIMES.includes(recipient.regimen_laboral) && hasSupervisorContact;
+  const managerIncomplete = type !== 'retiro' && recipient && !DIRECT_REGIMES.includes(recipient.regimen_laboral) && !hasSupervisorContact;
 
   const submit = async (event) => {
     event.preventDefault();
@@ -246,14 +247,14 @@ export default function Movimientos({ bienes = [], personal = [], canManage = fa
           {recipient && (
             <div className={`mt-4 rounded-2xl border px-4 py-3 text-sm ${requiresApproval ? 'border-amber-200 bg-amber-50 text-amber-900' : 'border-emerald-200 bg-emerald-50 text-emerald-800'}`}>
               {type === 'retiro' ? 'El retiro puede registrarse aunque el trabajador esté inactivo o su vínculo haya terminado.' : requiresApproval
-                ? managerIncomplete
-                  ? 'Falta registrar el jefe inmediato y su correo en Personal; no se puede solicitar autorización todavía.'
-                  : `Este movimiento quedará pendiente de autorización del jefe inmediato (${recipient.correo_jefe}).`
-                : `El documento se enviará directamente al correo institucional ${recipient.correo_institucional} (régimen ${recipient.regimen_laboral}).`}
+                ? `Este movimiento quedará pendiente de autorización del jefe inmediato (${recipient.correo_jefe}).`
+                : managerIncomplete
+                  ? 'No hay jefe inmediato registrado para este trabajador. El movimiento se registrará y continuará sin aprobación previa.'
+                  : `El documento se enviará directamente al correo institucional ${recipient.correo_institucional} (régimen ${recipient.regimen_laboral}).`}
             </div>
           )}
           {type !== 'retiro' && <p className="mt-3 text-sm text-slate-500">Para personal CAS o CAP se requiere un vínculo vigente en la fecha del movimiento. Regístralo o actualízalo desde Personal → Vínculo laboral.</p>}
-          <button type="submit" disabled={saving || managerIncomplete} className="mt-5 rounded-2xl bg-blue-600 px-5 py-3 font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50">
+          <button type="submit" disabled={saving} className="mt-5 rounded-2xl bg-blue-600 px-5 py-3 font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50">
             {saving ? 'Registrando...' : 'Registrar movimiento y generar documento'}
           </button>
         </form>
