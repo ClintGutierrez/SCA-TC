@@ -1,5 +1,5 @@
 import { safeUser } from '../utils/auth.js';
-import { bloquearUsuarios, prepararUsuario, protegerAcceso, userError } from '../utils/usuarios.js';
+import { bloquearUsuarios, prepararUsuario, protegerAcceso, revocarSesiones, userError } from '../utils/usuarios.js';
 
 const respondError = (res, error) => {
   if (error.code === '23505') return res.status(409).json({ error: 'Ya existe una cuenta con ese correo', campos: { email: 'Este correo ya está registrado.' } });
@@ -64,6 +64,9 @@ export const updateUsuario = async (req, res, sql) => {
       const [user] = await tx`UPDATE usuarios SET nombre=${payload.nombre},email=${payload.email},departamento=${payload.departamento},
         rol=${payload.rol},es_ti=${payload.es_ti},estado=${payload.estado},activo_login=${payload.activo_login},password_hash=${payload.password_hash}
         WHERE id=${id} RETURNING *`;
+      // Una contraseña nueva o un acceso retirado invalidan las sesiones abiertas de esa cuenta.
+      const accessRemoved = !payload.activo_login || payload.estado === 'inactivo';
+      if (payload.password_hash !== current.password_hash || accessRemoved) await revocarSesiones(tx, id);
       return user;
     });
     res.json(safeUser(updated));
@@ -80,6 +83,7 @@ export const disableUsuario = async (req, res, sql) => {
       if (!current) throw userError(404, 'Usuario no encontrado');
       protegerAcceso(users, current, { ...current, estado: 'inactivo', activo_login: false }, actorId);
       const [user] = await tx`UPDATE usuarios SET estado='inactivo',activo_login=FALSE WHERE id=${id} RETURNING *`;
+      await revocarSesiones(tx, id);
       return user;
     });
     res.json({ message: 'Usuario deshabilitado correctamente', user: safeUser(disabled) });

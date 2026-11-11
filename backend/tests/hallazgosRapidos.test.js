@@ -56,7 +56,7 @@ test('H09: cambiar contraseña permite entrar con la nueva y rechaza la anterior
   const sql = async (parts, ...values) => {
     const query = parts.join('');
     if (query.includes('WHERE LOWER(email)') && query.includes('id <>')) return [];
-    if (query.includes('UPDATE usuarios') && query.includes('COALESCE')) {
+    if (query.includes('UPDATE usuarios') && query.includes('password_hash =')) {
       assert.equal(values.at(-1), user.id);
       savedHash = values[3];
       user.password_hash = savedHash;
@@ -64,12 +64,12 @@ test('H09: cambiar contraseña permite entrar con la nueva y rechaza la anterior
     }
     if (query.includes('SELECT *') && query.includes('FROM usuarios')) return [{ ...user }];
     if (query.includes('INSERT INTO audit_log') || query.includes('INSERT INTO auth_sessions')
-      || query.includes('UPDATE usuarios')) return [];
+      || query.includes('UPDATE auth_sessions') || query.includes('UPDATE usuarios')) return [];
     assert.fail('Consulta inesperada en autenticación');
   };
   sql.begin = (callback) => callback(sql);
   const updated = response();
-  await updateProfile({ user: { sub: user.id }, body: { ...user, password: newPassword } }, updated, sql);
+  await updateProfile({ user: { sub: user.id }, body: { ...user, password: newPassword, currentPassword: oldPassword } }, updated, sql);
   assert.equal(updated.statusCode, 200);
   assert.equal(updated.body.user.id, user.id);
   assert.equal(updated.body.user.password_hash, undefined);

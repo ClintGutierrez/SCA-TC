@@ -4,7 +4,7 @@ import './NavBar.css';
 export default function NavBar({ currentUser, sidebarOpen, onProfileUpdate, onToggleSidebar, onLogout, onHome, title }) {
   const [profileOpen, setProfileOpen] = useState(false);
   const [editingProfile, setEditingProfile] = useState(false);
-  const [profileForm, setProfileForm] = useState({ nombre: '', email: '', departamento: '', password: '' });
+  const [profileForm, setProfileForm] = useState({ nombre: '', email: '', departamento: '', password: '', currentPassword: '' });
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileError, setProfileError] = useState('');
   const [profileSuccess, setProfileSuccess] = useState('');
@@ -33,6 +33,7 @@ export default function NavBar({ currentUser, sidebarOpen, onProfileUpdate, onTo
       email: currentUser.email || '',
       departamento: currentUser.departamento || '',
       password: '',
+      currentPassword: '',
     });
     setProfileError('');
     setProfileSuccess('');
@@ -55,13 +56,17 @@ export default function NavBar({ currentUser, sidebarOpen, onProfileUpdate, onTo
       await onProfileUpdate(profileForm);
       setProfileSuccess('Perfil actualizado correctamente');
       setEditingProfile(false);
-      setProfileForm((previous) => ({ ...previous, password: '' }));
+      setProfileForm((previous) => ({ ...previous, password: '', currentPassword: '' }));
     } catch (error) {
       setProfileError(error?.response?.data?.error || 'No se pudo actualizar el perfil');
     } finally {
       setProfileSaving(false);
     }
   };
+
+  // El backend exige la contraseña actual para cambiar la contraseña o el correo de acceso.
+  const needsCurrentPassword = profileForm.password !== ''
+    || profileForm.email.trim().toLowerCase() !== String(currentUser.email || '').toLowerCase();
 
   return (
     <header className="sca-topbar">
@@ -148,8 +153,15 @@ export default function NavBar({ currentUser, sidebarOpen, onProfileUpdate, onTo
                 </label>
                 <label className="block text-sm font-medium text-slate-700">
                   Nueva contraseña <span className="font-normal text-slate-400">(opcional)</span>
-                  <input type="password" name="password" value={profileForm.password} onChange={handleProfileChange} minLength="8" className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-100" />
+                  <input type="password" name="password" value={profileForm.password} onChange={handleProfileChange} minLength="8" autoComplete="new-password" className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-100" />
                 </label>
+                {needsCurrentPassword && (
+                  <label className="block text-sm font-medium text-slate-700">
+                    Contraseña actual
+                    <span className="block text-xs font-normal text-slate-500">Necesaria para cambiar tu contraseña o tu correo.</span>
+                    <input type="password" name="currentPassword" value={profileForm.currentPassword} onChange={handleProfileChange} autoComplete="current-password" className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-100" required />
+                  </label>
+                )}
 
                 {profileError && <p className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">{profileError}</p>}
                 <div className="flex gap-3 pt-2">

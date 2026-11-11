@@ -92,13 +92,16 @@ El backend procesa la solicitud en este orden:
 1. Recorta espacios del correo y comprueba que correo y contraseña estén
    presentes.
 2. Busca el usuario sin distinguir mayúsculas y minúsculas en el correo.
-3. Rechaza la solicitud si el usuario no existe.
-4. Rechaza el acceso si:
-   - No existe una contraseña configurada.
+3. Compara la contraseña con bcrypt. Si el usuario no existe o no tiene
+   contraseña configurada, la comparación se hace contra un hash ficticio,
+   para que el tiempo de respuesta no revele qué correos están registrados.
+4. Si el usuario no existe, no tiene contraseña o la contraseña no coincide,
+   devuelve el mismo error de credenciales inválidas.
+5. Solo después de validar la contraseña rechaza el acceso si:
    - `activo_login` es `false`.
    - `estado` es `inactivo`.
-5. Compara la contraseña recibida con el hash almacenado mediante bcrypt.
-6. Si la contraseña no coincide, devuelve un error de credenciales inválidas.
+
+   Así el estado de una cuenta solo se informa a quien ya conoce su contraseña.
 
 Las respuestas principales son:
 
@@ -106,8 +109,8 @@ Las respuestas principales son:
 |---|---|---|
 | `200` | Credenciales válidas | JWT y usuario seguro |
 | `400` | Faltan correo o contraseña | `Email y contraseña son obligatorios` |
-| `401` | Usuario inexistente o contraseña incorrecta | `Credenciales inválidas` |
-| `403` | Usuario bloqueado o inactivo | `Usuario sin acceso habilitado` |
+| `401` | Usuario inexistente, sin contraseña o contraseña incorrecta | `Credenciales inválidas` |
+| `403` | Contraseña correcta, pero usuario bloqueado o inactivo | `Usuario sin acceso habilitado` |
 | `429` | Se superó el límite de intentos | `Demasiados intentos. Intenta de nuevo más tarde.` |
 | `500` | Error inesperado del servidor | Error interno de autenticación |
 

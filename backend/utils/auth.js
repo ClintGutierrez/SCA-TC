@@ -64,8 +64,6 @@ export const hashPassword = (password) => bcrypt.hash(password, 10);
 
 export const comparePassword = (password, hash) => bcrypt.compare(password, hash || '');
 
-export const verifyToken = (token) => jwt.verify(token, process.env.JWT_SECRET || 'inventario-secret-key');
-
 export const verifyAccessToken = (token) => {
   const payload = jwt.verify(token, getJwtSecret(), {
     issuer: 'inventario-bienes',

@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import {
   comparePassword,
   createAuthToken,
@@ -8,8 +9,15 @@ import {
   refreshCookieName,
   safeUser,
 } from '../utils/auth.js';
+import { MENSAJE_PASSWORD, emailValido, passwordValida, revocarSesiones, userError } from '../utils/usuarios.js';
 
 const refreshTokenLifetimeDays = 7;
+
+let dummyHashPromise = null;
+const getDummyHash = () => {
+  dummyHashPromise ||= hashPassword(crypto.randomBytes(32).toString('hex'));
+  return dummyHashPromise;
+};
 
 const createRefreshTokenExpiresAt = () => {
   const expiresAt = new Date();
@@ -59,23 +67,21 @@ export const login = async (req, res, sql) => {
       LIMIT 1
     `;
 
-    if (users.length === 0) {
-      await recordAuthEvent(sql, { email: normalizedEmail, successful: false, reason: 'credenciales_invalidas' });
+    const user = users[0] || null;
+
+    // Siempre se ejecuta bcrypt (con un hash ficticio si no hay cuenta o contraseña)
+    // para que el tiempo de respuesta no revele qué correos existen.
+    const isValid = await comparePassword(normalizedPassword, user?.password_hash || await getDummyHash());
+
+    if (!user || !user.password_hash || !isValid) {
+      await recordAuthEvent(sql, { user, email: user?.email || normalizedEmail, successful: false, reason: 'credenciales_invalidas' });
       return res.status(401).json({ error: 'Credenciales inválidas' });
     }
 
-    const user = users[0];
-
-    if (!user.password_hash || user.activo_login === false || user.estado === 'inactivo') {
+    // El estado de la cuenta solo se informa a quien ya demostró conocer la contraseña.
+    if (user.activo_login === false || user.estado === 'inactivo') {
       await recordAuthEvent(sql, { user, email: user.email, successful: false, reason: 'acceso_deshabilitado' });
       return res.status(403).json({ error: 'Usuario sin acceso habilitado' });
-    }
-
-    const isValid = await comparePassword(normalizedPassword, user.password_hash);
-
-    if (!isValid) {
-      await recordAuthEvent(sql, { user, email: user.email, successful: false, reason: 'credenciales_invalidas' });
-      return res.status(401).json({ error: 'Credenciales inválidas' });
     }
 
     const token = createAuthToken(user);
@@ -222,43 +228,77 @@ export const me = async (req, res, sql) => {
 
 export const updateProfile = async (req, res, sql) => {
   try {
-    const { nombre, email, departamento, password } = req.body;
-    const normalizedName = (nombre || '').trim();
-    const normalizedEmail = (email || '').trim();
-    const normalizedDepartment = (departamento || '').trim();
+    const userId = Number(req.user?.sub);
+    if (!Number.isSafeInteger(userId) || userId <= 0) throw userError(401, 'Identidad de sesión inválida');
 
-    if (!normalizedName || !normalizedEmail) {
-      return res.status(400).json({ error: 'Nombre y email son obligatorios' });
+    const body = req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {};
+    const { nombre, email, departamento, password, currentPassword } = body;
+    const normalizedName = typeof nombre === 'string' ? nombre.trim() : '';
+    const normalizedEmail = typeof email === 'string' ? email.trim().toLowerCase() : '';
+    const normalizedDepartment = typeof departamento === 'string' ? departamento.trim() : '';
+    const changePassword = password !== undefined && password !== null && password !== '';
+
+    const campos = {};
+    if (!normalizedName || normalizedName.length > 255) campos.nombre = 'Escribe un nombre de hasta 255 caracteres.';
+    if (!emailValido(normalizedEmail)) campos.email = 'Escribe un correo válido.';
+    if (departamento != null && (typeof departamento !== 'string' || departamento.length > 255)) {
+      campos.departamento = 'Usa como máximo 255 caracteres.';
+    }
+    if (changePassword && !passwordValida(password)) campos.password = MENSAJE_PASSWORD;
+    if (Object.keys(campos).length) throw userError(400, 'Revisa los datos del perfil', campos);
+
+    const newPasswordHash = changePassword ? await hashPassword(password) : null;
+    const refreshToken = req.cookies?.[refreshCookieName];
+
+    const updated = await sql.begin(async (tx) => {
+      const [current] = await tx`SELECT * FROM usuarios WHERE id = ${userId} FOR UPDATE`;
+      if (!current) throw userError(404, 'Usuario no encontrado');
+      if (current.estado === 'inactivo' || current.activo_login === false) {
+        throw userError(403, 'Usuario sin acceso habilitado');
+      }
+
+      // Cambiar la contraseña o el correo de acceso exige demostrar la contraseña actual,
+      // para que un token de acceso robado no baste para apropiarse de la cuenta.
+      const emailChanged = normalizedEmail !== String(current.email || '').toLowerCase();
+      if (changePassword || emailChanged) {
+        const valid = typeof currentPassword === 'string' && currentPassword !== ''
+          && await comparePassword(currentPassword, current.password_hash);
+        if (!valid) {
+          throw userError(403, 'La contraseña actual no es correcta', { currentPassword: 'Escribe tu contraseña actual.' });
+        }
+      }
+
+      const duplicates = await tx`
+        SELECT id FROM usuarios WHERE LOWER(email) = ${normalizedEmail} AND id <> ${userId} LIMIT 1
+      `;
+      if (duplicates.length) throw userError(409, 'Ya existe un usuario con ese email', { email: 'Este correo ya está registrado.' });
+
+      const [user] = await tx`
+        UPDATE usuarios
+        SET nombre = ${normalizedName},
+            email = ${normalizedEmail},
+            departamento = ${normalizedDepartment || null},
+            password_hash = ${newPasswordHash || current.password_hash}
+        WHERE id = ${userId}
+        RETURNING id, nombre, email, departamento, rol, es_ti, estado, activo_login, last_login, created_at
+      `;
+
+      // Con una contraseña nueva se cierran las demás sesiones; la actual se conserva.
+      if (changePassword) await revocarSesiones(tx, userId, refreshToken ? hashToken(refreshToken) : null);
+      return user;
+    });
+
+    if (changePassword) {
+      await recordAuthEvent(sql, { user: updated, email: updated.email, successful: true, operation: 'PASSWORD_CHANGE' });
     }
 
-    const duplicateUsers = await sql`
-      SELECT id
-      FROM usuarios
-      WHERE LOWER(email) = LOWER(${normalizedEmail}) AND id <> ${req.user.sub}
-      LIMIT 1
-    `;
-
-    if (duplicateUsers.length > 0) {
-      return res.status(409).json({ error: 'Ya existe un usuario con ese email' });
-    }
-
-    const passwordHash = password ? await hashPassword(password) : null;
-    const users = await sql`
-      UPDATE usuarios
-      SET nombre = ${normalizedName},
-          email = ${normalizedEmail},
-          departamento = ${normalizedDepartment},
-          password_hash = COALESCE(${passwordHash}, password_hash)
-      WHERE id = ${req.user.sub}
-      RETURNING id, nombre, email, departamento, rol, es_ti, estado, activo_login, last_login, created_at
-    `;
-
-    if (users.length === 0) {
-      return res.status(404).json({ error: 'Usuario no encontrado' });
-    }
-
-    return res.json({ user: safeUser(users[0]) });
+    return res.json({ user: safeUser(updated) });
   } catch (error) {
-    return res.status(500).json({ error: error.message });
+    if (error.code === '23505') return res.status(409).json({ error: 'Ya existe un usuario con ese email' });
+    if (error.status) {
+      return res.status(error.status).json({ error: error.message, ...(error.campos ? { campos: error.campos } : {}) });
+    }
+    console.error('Error actualizando perfil:', error.message);
+    return res.status(500).json({ error: 'No se pudo actualizar el perfil' });
   }
 };
