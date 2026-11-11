@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { MOTIVOS_FIN_SESION, esCuentaDeshabilitada, notificarFinSesion } from '../utils/sesion';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
@@ -54,6 +55,13 @@ apiClient.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config || {};
 
+    // La cuenta fue deshabilitada mientras la sesión seguía abierta: se cierra la sesión.
+    if (esCuentaDeshabilitada(error)) {
+      clearAuthToken();
+      notificarFinSesion(MOTIVOS_FIN_SESION.cuentaDeshabilitada);
+      return Promise.reject(error);
+    }
+
     if (error?.response?.status === 401 && !originalRequest._retry && !isAuthEndpoint(originalRequest.url)) {
       originalRequest._retry = true;
 
@@ -69,11 +77,14 @@ apiClient.interceptors.response.use(
           return apiClient(originalRequest);
         }
       } catch (refreshError) {
+        // El refresh falla si la sesión expiró, fue revocada o la cuenta se deshabilitó.
         clearAuthToken();
+        notificarFinSesion(MOTIVOS_FIN_SESION.sesionExpirada);
         return Promise.reject(refreshError);
       }
 
       clearAuthToken();
+      notificarFinSesion(MOTIVOS_FIN_SESION.sesionExpirada);
     }
 
     return Promise.reject(error);

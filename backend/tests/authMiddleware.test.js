@@ -71,6 +71,7 @@ test('middleware: una cuenta deshabilitada o con estado desconocido pierde acces
     const result = await run(dbUser({ ...active, ...overrides }).sql, headers);
     assert.equal(result.passed, false);
     assert.equal(result.res.statusCode, 403);
+    assert.equal(result.res.body.code, 'CUENTA_DESHABILITADA');
   }
 });
 

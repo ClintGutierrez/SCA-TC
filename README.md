@@ -272,6 +272,17 @@ SMTP_FROM=
 
 Si SMTP no está configurado, el movimiento seguirá registrado y el documento podrá imprimirse; la interfaz indicará que no se pudo enviar.
 
+## Estado de las cuentas
+
+Una cuenta tiene acceso solo si `estado = 'activo'` y `activo_login = TRUE`. El inicio de sesión, la
+renovación de sesión, el perfil y cada solicitud autenticada aplican esa misma regla. Si una cuenta se
+deshabilita mientras está conectada, la API responde HTTP 403 con `code: 'CUENTA_DESHABILITADA'` y el
+frontend cierra la sesión mostrando el motivo.
+
+En bases existentes, desde `backend` aplique las restricciones de `usuarios.estado` (solo `activo` o
+`inactivo`, sin valores nulos) con `npm run migrate:usuarios-estado`. También está incluida en
+`npm run migrate` y puede repetirse.
+
 ## Inicialización explícita de cuentas
 
 El arranque del backend conserva las contraseñas, los roles y el estado de las cuentas existentes.

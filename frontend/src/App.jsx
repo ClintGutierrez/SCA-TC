@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import './App.css';
 import * as api from './services/api';
+import { MENSAJES_FIN_SESION, MOTIVOS_FIN_SESION, alTerminarSesion } from './utils/sesion';
 import NavBar from './components/NavBar';
 import Sidebar from './components/Sidebar';
 import Dashboard from './components/Dashboard';
@@ -199,8 +200,8 @@ function App() {
     }
   };
 
-  const handleLogout = () => {
-    api.logout().catch(() => {});
+  // Limpia el estado local de la sesión; no llama al servidor.
+  const resetSession = () => {
     api.clearAuthToken();
     setCurrentUser(null);
     setBienes([]);
@@ -212,6 +213,19 @@ function App() {
     setCurrentView('dashboard');
     setSidebarOpen(false);
   };
+
+  const handleLogout = () => {
+    api.logout().catch(() => {});
+    setAuthError('');
+    resetSession();
+  };
+
+  // Si el servidor da por terminada la sesión (cuenta deshabilitada o sesión expirada),
+  // se vuelve al inicio de sesión mostrando el motivo.
+  useEffect(() => alTerminarSesion((motivo) => {
+    resetSession();
+    setAuthError(MENSAJES_FIN_SESION[motivo] || MENSAJES_FIN_SESION[MOTIVOS_FIN_SESION.sesionExpirada]);
+  }), []);
 
   const handleProfileUpdate = async (profile) => {
     const response = await api.updateProfile(profile);

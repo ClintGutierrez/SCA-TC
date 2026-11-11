@@ -32,7 +32,8 @@ export const authenticate = (sql) => async (req, res, next) => {
       return res.status(401).json({ error: 'Sesión no válida' });
     }
     if (!cuentaHabilitada(user)) {
-      return res.status(403).json({ error: 'La cuenta está deshabilitada' });
+      // El código permite al frontend cerrar la sesión en vez de tratarlo como un permiso denegado.
+      return res.status(403).json({ error: 'La cuenta está deshabilitada', code: 'CUENTA_DESHABILITADA' });
     }
     req.user = { ...payload, sub: userId, rol: user.rol, email: user.email, nombre: user.nombre };
     return next();
