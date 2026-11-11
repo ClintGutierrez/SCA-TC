@@ -3,6 +3,7 @@ import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } f
 import { createPortal } from 'react-dom';
 import * as api from '../services/api';
 import { filtrarInventario, paginarInventario, prepararInventario } from '../utils/inventario';
+import { TIPOS as TIPOS_REGISTRO } from '../utils/camposPorTipo';
 import TablaInventario from './InventarioTabla';
 import './InventarioList.css';
 
@@ -147,6 +148,8 @@ const SPECS_POR_TIPO = {
     select('grado_proteccion', 'Proteccion IP', ['Sin proteccion', 'IP65', 'IP66', 'IP67', 'IP68'], 'Grado de proteccion contra agua y polvo'),
   ],
 };
+// El registro usa 'switch'; las especificaciones históricas del editor se guardaron como 'switch_'.
+SPECS_POR_TIPO.switch = SPECS_POR_TIPO.switch_;
 
 const TIPOS_DISPONIBLES = [
   { value: '', label: 'Todos' },
@@ -304,6 +307,7 @@ export default function InventarioList({ bienes, onRefresh, canCreate, canEdit, 
   const closeEditorRef = useRef(null);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
+  const [tipoOriginal, setTipoOriginal] = useState('');
   const [loading, setLoading] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
   const [historyBien, setHistoryBien] = useState(null);
@@ -398,6 +402,7 @@ export default function InventarioList({ bienes, onRefresh, canCreate, canEdit, 
     });
     setFormErrors({});
     setEditingId(null);
+    setTipoOriginal('');
     setShowForm(false);
   };
 
@@ -462,7 +467,13 @@ export default function InventarioList({ bienes, onRefresh, canCreate, canEdit, 
       onRefresh();
     } catch (error) {
       console.error('Error:', error);
-      alert(error?.response?.data?.error || 'Error al guardar el bien');
+      const campos = error?.response?.data?.campos;
+      if (campos && typeof campos === 'object') {
+        setFormErrors(campos);
+        requestAnimationFrame(() => editorRef.current?.querySelector('[aria-invalid="true"]')?.focus());
+      }
+      const detalle = campos ? Object.values(campos).join('\n') : '';
+      alert([error?.response?.data?.error || 'Error al guardar el bien', detalle].filter(Boolean).join('\n'));
     } finally {
       setLoading(false);
     }
@@ -493,6 +504,7 @@ export default function InventarioList({ bienes, onRefresh, canCreate, canEdit, 
       ordenCompra: bien.orden_compra || '',
     });
     setFormErrors({});
+    setTipoOriginal(bien.tipo || '');
     setEditingId(bien.id);
     setShowForm(true);
   }, []);
@@ -661,20 +673,11 @@ export default function InventarioList({ bienes, onRefresh, canCreate, canEdit, 
                   className={fieldClass(Boolean(formErrors.tipo))}
                 >
                   <option value="">Selecciona tipo</option>
-                  <option value="laptop">Laptop</option>
-                  <option value="computadora">Computadora (Torre / Escritorio)</option>
-                  <option value="all_in_one">All in One (Todo en Uno)</option>
-                  <option value="servidor">Servidor</option>
-                  <option value="monitor">Monitor</option>
-                  <option value="impresora">Impresora</option>
-                  <option value="escaner">Escaner</option>
-                  <option value="teclado">Teclado</option>
-                  <option value="mouse">Mouse</option>
-                  <option value="router">Router</option>
-                  <option value="switch_">Switch de Red</option>
-                  <option value="nas">NAS (Almacenamiento en Red)</option>
-                  <option value="camara">Camara</option>
-                  <option value="otro">Otro</option>
+                  {/* Los mismos tipos que al registrar; un tipo antiguo se conserva pero no se puede volver a elegir. */}
+                  {tipoOriginal && !TIPOS_REGISTRO.some(({ value }) => value === tipoOriginal) && (
+                    <option value={tipoOriginal}>{tipoOriginal} (tipo actual)</option>
+                  )}
+                  {TIPOS_REGISTRO.map(({ value, label }) => <option key={value} value={value}>{label}</option>)}
                 </Select>
                 {formErrors.tipo && <p id="asset-tipo-error" role="alert" className="mt-1 text-xs text-red-600">{formErrors.tipo}</p>}
               </div>

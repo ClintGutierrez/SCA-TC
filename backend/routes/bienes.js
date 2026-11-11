@@ -1,11 +1,13 @@
 import express from 'express';
 import * as bienesController from '../controllers/bienesController.js';
 import { authenticate, requireRole } from '../middleware/auth.js';
+import { validarParamId } from '../utils/ids.js';
 
 export const createBienesRouter = (sql) => {
   const router = express.Router();
 
   router.use(authenticate(sql));
+  router.param('id', validarParamId);
 
   router.get('/', (req, res) => bienesController.getBienes(req, res, sql));
   router.get('/:id', (req, res) => bienesController.getBienById(req, res, sql));

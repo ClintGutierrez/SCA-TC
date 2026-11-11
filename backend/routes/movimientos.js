@@ -1,10 +1,12 @@
 import express from 'express';
 import * as controller from '../controllers/movimientosController.js';
 import { authenticate, requireRole } from '../middleware/auth.js';
+import { validarParamId } from '../utils/ids.js';
 
 export const createMovimientosRouter = (sql) => {
   const router = express.Router();
   router.use(authenticate(sql));
+  router.param('id', validarParamId);
   router.get('/', requireRole('administrador', 'jefatura', 'tecnico', 'auditor'), (req, res) => controller.listMovimientos(req, res, sql));
   router.post('/', requireRole('administrador', 'jefatura'), (req, res) => controller.createMovimiento(req, res, sql));
   router.post('/:id/aprobacion', (req, res) => controller.approveMovimiento(req, res, sql));
