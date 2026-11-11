@@ -317,8 +317,8 @@ node --test tests/integridad.integration.test.js
 
 Se mantiene la fórmula de saldo decreciente que ya utilizaba el sistema:
 `valor_inicial × (1 − porcentaje_anual / 100)^(año_cálculo − año_base)`, redondeada a dos decimales.
-El cálculo usa años calendario en `America/Lima`. El año base corresponde al alta de la depreciación,
-no a la fecha de compra del bien. El método contable y sus tasas deben acordarse por separado con el
+El cálculo usa años calendario en `America/Lima`. El año base es el año de la fecha de adquisición
+del bien: un equipo comprado en 2022 y registrado en 2026 ya muestra cuatro años de depreciación. El método contable y sus tasas deben acordarse por separado con el
 responsable funcional antes de usarlos como valoración contable oficial.
 
 `ano_base` permanece fijo; `ano_actual` registra únicamente el último año calculado. Cada actualización
@@ -339,6 +339,24 @@ o existen varias depreciaciones para un bien, se rechaza la actualización con H
 Los registros importados deben revisarse si su fecha de creación no representa el inicio original.
 Después de revisar los importes afectados por el cálculo anterior, su recálculo se realiza mediante
 `PUT /api/depreciacion/:bienId`. El reporte admite bienes con valor inicial cero sin dividir entre cero.
+
+### Año base desde la fecha de adquisición
+
+Las depreciaciones registradas antes de este cambio usan como año base el de su registro. Para llevarlas
+al año de adquisición de cada bien, desde `backend` ejecute:
+
+```powershell
+npm run migrate:depreciacion-adquisicion
+```
+
+También está incluida en `npm run migrate`. Recalcula `valor_actual` al mismo `ano_actual`, registra cada
+cambio en `audit_log` (operación `CONCILIAR_ANO_ADQUISICION`, con los valores anteriores y nuevos) y puede
+repetirse sin efectos adicionales. Los registros con datos inválidos o fechas futuras no se modifican y se
+informan para revisión manual. Fuera de esta conciliación, `ano_base` sigue sin poder modificarse.
+
+Mientras el año base de un registro no coincida con el año de adquisición de su bien, `PUT
+/api/depreciacion/:bienId` responde HTTP 409. Esto también ocurre si se corrige la fecha de adquisición de
+un bien que ya tiene depreciación: en ese caso basta con volver a ejecutar la conciliación.
 
 Las pruebas unitarias y la integración optativa se ejecutan con:
 

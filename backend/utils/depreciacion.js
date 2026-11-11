@@ -29,6 +29,15 @@ export const anoLima = (date = new Date()) => Number(new Intl.DateTimeFormat('en
   timeZone: 'America/Lima', year: 'numeric',
 }).format(date));
 
+// Año de adquisición del bien como año base; no puede ser posterior al año de cálculo.
+export const anoAdquisicion = (asset, targetYear) => {
+  const year = Number(asset?.ano_adquisicion);
+  if (asset?.ano_adquisicion == null || !Number.isInteger(year) || year < 1 || year > targetYear) {
+    throw depreciationError(409, 'La fecha de adquisición del bien no es válida para calcular la depreciación');
+  }
+  return year;
+};
+
 export const calcularDepreciacion = (valorInicial, porcentajeAnual, anios) => {
   const initial = validarValorInicial(valorInicial);
   const rate = validarPorcentajeAnual(porcentajeAnual);

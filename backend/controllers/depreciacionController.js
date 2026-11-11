@@ -1,4 +1,4 @@
-import { anoLima, calcularAlAno, depreciationError, validarBienId, validarPorcentajeAnual, validarValorInicial } from '../utils/depreciacion.js';
+import { anoAdquisicion, anoLima, calcularAlAno, calcularDepreciacion, depreciationError, validarBienId, validarPorcentajeAnual, validarValorInicial } from '../utils/depreciacion.js';
 export { calcularDepreciacion } from '../utils/depreciacion.js';
 
 const respondError = (res, error) => {
@@ -39,13 +39,19 @@ export const crearDepreciacion = async (req, res, sql, now = new Date()) => {
     const porcentajeAnual = req.body?.porcentajeAnual === undefined ? 20 : validarPorcentajeAnual(req.body.porcentajeAnual);
     const year = anoLima(now);
     const depreciacion = await sql.begin(async (tx) => {
-      const [asset] = await tx`SELECT id FROM bienes_informaticos WHERE id = ${bienId} FOR UPDATE`;
+      const [asset] = await tx`
+        SELECT id, EXTRACT(YEAR FROM fecha_adquisicion)::integer AS ano_adquisicion
+        FROM bienes_informaticos WHERE id = ${bienId} FOR UPDATE
+      `;
       if (!asset) throw depreciationError(404, 'Bien no encontrado');
+      // La depreciación empieza en el año de adquisición del bien, no en el de su registro.
+      const base = anoAdquisicion(asset, year);
+      const valorActual = calcularDepreciacion(valorInicial, porcentajeAnual, year - base);
       const existing = await tx`SELECT id FROM depreciacion WHERE bien_id = ${bienId}`;
       if (existing.length) throw depreciationError(409, 'El bien ya tiene una depreciación registrada');
       const [created] = await tx`
         INSERT INTO depreciacion (bien_id, valor_inicial, porcentaje_anual, valor_actual, ano_base, ano_actual)
-        VALUES (${bienId}, ${valorInicial}, ${porcentajeAnual}, ${valorInicial}, ${year}, ${year}) RETURNING *
+        VALUES (${bienId}, ${valorInicial}, ${porcentajeAnual}, ${valorActual}, ${base}, ${year}) RETURNING *
       `;
       return created;
     });
@@ -64,6 +70,14 @@ export const actualizarDepreciacion = async (req, res, sql, now = new Date()) =>
       if (!rows.length) throw depreciationError(404, 'Depreciación no encontrada');
       if (rows.length > 1) throw depreciationError(409, 'El bien tiene varias depreciaciones; concilie sus registros antes de continuar');
       const current = rows[0];
+      const [asset] = await tx`
+        SELECT EXTRACT(YEAR FROM fecha_adquisicion)::integer AS ano_adquisicion
+        FROM bienes_informaticos WHERE id = ${bienId}
+      `;
+      if (!asset) throw depreciationError(404, 'Bien no encontrado');
+      if (anoAdquisicion(asset, year) !== Number(current.ano_base)) {
+        throw depreciationError(409, 'El año base no coincide con la fecha de adquisición del bien; ejecute la conciliación de depreciación');
+      }
       const value = calcularAlAno(current, year);
       const [updated] = await tx`
         UPDATE depreciacion SET valor_actual = ${value}, ano_actual = ${year}, updated_at = CURRENT_TIMESTAMP

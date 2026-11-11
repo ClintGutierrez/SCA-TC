@@ -46,6 +46,8 @@ async function runMigrations() {
       await transaction.unsafe(fs.readFileSync(costosPath, 'utf8'));
       const depreciacionPath = path.join(path.dirname(fileURLToPath(import.meta.url)), '20261105_depreciacion_base.sql');
       await transaction.unsafe(fs.readFileSync(depreciacionPath, 'utf8'));
+      const adquisicionPath = path.join(path.dirname(fileURLToPath(import.meta.url)), '20261110_depreciacion_ano_adquisicion.sql');
+      await transaction.unsafe(fs.readFileSync(adquisicionPath, 'utf8'));
       await transaction.unsafe(`ALTER TABLE IF EXISTS usuarios ADD COLUMN IF NOT EXISTS password_hash TEXT`);
       await transaction.unsafe(`ALTER TABLE IF EXISTS usuarios ADD COLUMN IF NOT EXISTS last_login TIMESTAMP`);
       await transaction.unsafe(`ALTER TABLE IF EXISTS usuarios ADD COLUMN IF NOT EXISTS activo_login BOOLEAN DEFAULT TRUE`);

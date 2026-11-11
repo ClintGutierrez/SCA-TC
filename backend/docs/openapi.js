@@ -148,13 +148,13 @@ export const openapiSpec = {
     '/api/depreciacion': {
       get: secured('Listar depreciacion', ['Depreciacion']),
       post: {
-        ...secured('Crear depreciacion', ['Depreciacion'], {
+        ...secured('Crear depreciacion desde el ano de adquisicion del bien', ['Depreciacion'], {
           201: { description: 'Depreciacion creada' },
           400: { description: 'Datos invalidos' },
           401: { description: 'No autenticado' },
           403: { description: 'Permisos insuficientes' },
           404: { description: 'Bien no encontrado' },
-          409: { description: 'El bien ya tiene depreciacion registrada' },
+          409: { description: 'El bien ya tiene depreciacion registrada o su fecha de adquisicion no es valida' },
         }),
         requestBody: {
           required: true,
@@ -179,7 +179,7 @@ export const openapiSpec = {
         200: { description: 'Importe recalculado para el ano calendario actual en America/Lima' },
         400: { description: 'Identificador invalido' },
         404: { description: 'Depreciacion no encontrada' },
-        409: { description: 'Base, cronologia o registros duplicados requieren conciliacion' },
+        409: { description: 'Base distinta del ano de adquisicion, cronologia o registros duplicados requieren conciliacion' },
       }),
     },
     '/api/reportes/inventario': {

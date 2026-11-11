@@ -24,7 +24,10 @@ test('H05 en PostgreSQL aislado: migración, repetición, concurrencia y reporte
   try {
     await admin.unsafe(`CREATE SCHEMA ${schema}`);
     sql = postgres({ ...options, connection: { search_path: schema }, max: 3 });
-    await sql.unsafe(`CREATE TABLE bienes_informaticos (id SERIAL PRIMARY KEY, nombre TEXT, tipo TEXT);
+    await sql.unsafe(`CREATE TABLE bienes_informaticos (id SERIAL PRIMARY KEY, nombre TEXT, tipo TEXT,
+        fecha_adquisicion DATE NOT NULL DEFAULT '2024-01-01');
+      CREATE TABLE audit_log (id SERIAL PRIMARY KEY, usuario_id INTEGER, tabla_afectada TEXT NOT NULL, operacion TEXT,
+        registro_id INTEGER, datos_anteriores JSONB, datos_nuevos JSONB, created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP);
       CREATE TABLE depreciacion (id SERIAL PRIMARY KEY, bien_id INTEGER NOT NULL REFERENCES bienes_informaticos(id),
         valor_inicial NUMERIC(12,2), porcentaje_anual NUMERIC(5,2), valor_actual NUMERIC(12,2), ano_actual INTEGER,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);`);
@@ -97,6 +100,36 @@ test('H05 en PostgreSQL aislado: migración, repetición, concurrencia y reporte
       assert.equal(res.statusCode, 409);
       const rows = await sql`SELECT valor_actual FROM depreciacion WHERE bien_id=${id} ORDER BY id`;
       assert.deepEqual(rows.map((row) => Number(row.valor_actual)), [1000,500]);
+    });
+
+    await t.test('la conciliación lleva el año base a la adquisición, es repetible y queda auditada', async () => {
+      const [{ id }] = await sql`INSERT INTO bienes_informaticos (nombre,tipo,fecha_adquisicion)
+        VALUES ('Equipo antiguo','otro','2022-06-30') RETURNING id`;
+      // Registro creado con la regla anterior: base en el año de registro (2026).
+      await sql`INSERT INTO depreciacion (bien_id,valor_inicial,porcentaje_anual,valor_actual,ano_base,ano_actual)
+        VALUES (${id},1000,20,1000,2026,2026)`;
+      const stale = response();
+      await actualizarDepreciacion({ params: { bienId: id } }, stale, sql, today);
+      assert.equal(stale.statusCode, 409, 'Antes de conciliar no debe recalcular con la base antigua');
+
+      const conciliation = await fs.readFile(new URL('../migrations/20261110_depreciacion_ano_adquisicion.sql', import.meta.url), 'utf8');
+      await sql.begin((tx) => tx.unsafe(conciliation));
+      await sql.begin((tx) => tx.unsafe(conciliation));
+      const [row] = await sql`SELECT * FROM depreciacion WHERE bien_id=${id}`;
+      assert.equal(row.ano_base, 2022);
+      assert.equal(row.ano_actual, 2026);
+      assert.equal(Number(row.valor_actual), 409.6);
+      const audit = await sql`SELECT * FROM audit_log WHERE tabla_afectada='depreciacion' AND registro_id=${row.id}`;
+      assert.equal(audit.length, 1, 'Repetir la conciliación no duplica cambios ni auditoría');
+      assert.equal(audit[0].datos_anteriores.ano_base, 2026);
+      assert.equal(audit[0].datos_nuevos.ano_base, 2022);
+
+      const res = response();
+      await actualizarDepreciacion({ params: { bienId: id } }, res, sql, today);
+      assert.equal(res.statusCode, 200);
+      assert.equal(Number(res.body.valor_actual), 409.6);
+      // Fuera de la conciliación el año base sigue protegido.
+      await assert.rejects(sql`UPDATE depreciacion SET ano_base=2023 WHERE bien_id=${id}`, { code: '23514' });
     });
 
     await t.test('el reporte admite costo cero sin dividir entre cero', async () => {
