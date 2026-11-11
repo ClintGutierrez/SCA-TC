@@ -92,9 +92,8 @@ export const createBien = async (req, res, sql) => {
   if (macIngresada && !MAC_REGEX.test(macIngresada)) {
     campos.direccionMac = 'Formato de MAC inválido (ej. A1:B2:C3:D4:E5:F6)';
   }
-  if (valor !== null && !costoValido(body.valor)) {
-    campos.valor = 'El valor debe ser un número mayor o igual a 0';
-  }
+  if (valor === null) campos.valor = 'El valor es obligatorio (0 si no tuvo costo)';
+  else if (!costoValido(body.valor)) campos.valor = 'El valor debe ser un número mayor o igual a 0';
 
   if (!fechaCompra) campos.fechaCompra = 'La fecha de compra es obligatoria';
   else if (!fechaValida(fechaCompra)) campos.fechaCompra = 'La fecha de compra no es válida';
@@ -156,7 +155,7 @@ export const createBien = async (req, res, sql) => {
         VALUES
           (${codigoPatrimonial}, ${numeroSerie}, ${nombre}, ${descripcion}, ${tipo}, ${marca}, ${modelo},
            ${direccionMac}, ${ordenCompra}, ${tx.json({})}, ${tx.json(detalles)}, ${fechaCompra}, ${garantiaAnios},
-           ${valor ?? 0}, 'activo', ${ubicacion})
+           ${valor}, 'activo', ${ubicacion})
         RETURNING *
       `;
 

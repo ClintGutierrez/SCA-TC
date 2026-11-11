@@ -293,8 +293,8 @@ autorizado; este comando rechaza ese entorno.
 
 ## Integridad de costos y estado patrimonial
 
-La edición de la ficha técnica valida costos finitos mayores o iguales a cero y conserva el estado
-patrimonial. Las transiciones deben realizarse mediante los módulos correspondientes, con sus controles.
+El registro de un bien exige su valor (0 si no tuvo costo). El registro y la edición de la ficha técnica
+validan costos finitos mayores o iguales a cero, y la edición conserva el estado patrimonial. Las transiciones deben realizarse mediante los módulos correspondientes, con sus controles.
 
 Para bases existentes, desde `backend` aplique únicamente la restricción adicional de costos con:
 

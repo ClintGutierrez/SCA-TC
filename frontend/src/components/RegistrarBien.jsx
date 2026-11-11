@@ -37,6 +37,7 @@ const OBLIGATORIOS = {
   marca: 'La marca es obligatoria',
   modelo: 'El modelo es obligatorio',
   ubicacion: 'La ubicación / sede inicial es obligatoria',
+  valor: 'El valor es obligatorio (0 si no tuvo costo)',
   fechaCompra: 'La fecha de compra es obligatoria',
   garantiaAnios: 'Los años de garantía son obligatorios (0 si no tiene)',
 };
@@ -319,7 +320,7 @@ export default function RegistrarBien({ onSaved, onCancel }) {
         </div>
 
         <div className="inventory-editor-grid inventory-editor-grid--three">
-          <Campo label="Valor (S/)" error={errores.valor}>
+          <Campo label="Valor (S/)" obligatorio error={errores.valor}>
             <input type="number" placeholder="0.00" step="0.01" min="0" {...campoProps('valor')} />
           </Campo>
           <Campo label="Fecha de compra" obligatorio error={errores.fechaCompra}>

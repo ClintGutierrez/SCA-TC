@@ -82,6 +82,18 @@ test('H04: admite costo cero y valores decimales al registrar y editar', async (
   }
 });
 
+test('registrar un bien exige el valor: sin él responde 400 y no escribe', async () => {
+  const sinValor = { ...validCreate };
+  for (const body of [sinValor, { ...validCreate, valor: '' }, { ...validCreate, valor: null }]) {
+    const { sql, writes } = database();
+    const res = response();
+    await createBien({ user: { sub: 7 }, body }, res, sql);
+    assert.equal(res.statusCode, 400);
+    assert.match(res.body.campos.valor, /obligatorio/);
+    assert.equal(writes.length, 0);
+  }
+});
+
 test('H04: una ficha dada de baja sigue bloqueada para edición', async () => {
   const { sql, writes } = database({ ...previous, estado: 'baja' });
   const res = response();
