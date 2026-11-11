@@ -271,3 +271,83 @@ SMTP_FROM=
 ```
 
 Si SMTP no está configurado, el movimiento seguirá registrado y el documento podrá imprimirse; la interfaz indicará que no se pudo enviar.
+
+## Inicialización explícita de cuentas
+
+El arranque del backend conserva las contraseñas, los roles y el estado de las cuentas existentes.
+`SEED_DEFAULT_USERS` ya no activa la creación de cuentas. Para inicializar cuentas de desarrollo o pruebas,
+prepare fuera del repositorio un archivo JSON privado con una lista de objetos que incluyan `nombre`,
+`email`, `rol` y `password`. `departamento` y `es_ti` son opcionales. Las contraseñas deben tener al menos
+8 caracteres y no superar 72 bytes UTF-8. No agregue ese archivo al control de versiones.
+
+Desde `backend`, ejecute en PowerShell:
+
+```powershell
+$env:NODE_ENV = 'development'
+npm run seed:users -- --file C:\privado\cuentas.json
+```
+
+El comando admite únicamente `development` y `test`. Las cuentas existentes, incluso las inactivas,
+se omiten sin cambiar sus datos. Para producción, gestione las cuentas mediante el flujo administrativo
+autorizado; este comando rechaza ese entorno.
+
+## Integridad de costos y estado patrimonial
+
+La edición de la ficha técnica valida costos finitos mayores o iguales a cero y conserva el estado
+patrimonial. Las transiciones deben realizarse mediante los módulos correspondientes, con sus controles.
+
+Para bases existentes, desde `backend` aplique únicamente la restricción adicional de costos con:
+
+```powershell
+npm run migrate:integridad
+```
+
+La migración también está incluida en `npm run migrate`. No modifica costos históricos: la restricción
+`NOT VALID` impide nuevas inserciones o actualizaciones inválidas y permite revisar los registros anteriores
+por separado. Tras conciliar esos registros, se puede validar la restricción completa en PostgreSQL.
+
+La prueba de integración usa un esquema temporal independiente y elimina únicamente ese esquema al terminar:
+
+```powershell
+$env:TEST_INTEGRIDAD_DATABASE = '1'
+node --test tests/integridad.integration.test.js
+```
+
+## Depreciación reproducible H05
+
+Se mantiene la fórmula de saldo decreciente que ya utilizaba el sistema:
+`valor_inicial × (1 − porcentaje_anual / 100)^(año_cálculo − año_base)`, redondeada a dos decimales.
+El cálculo usa años calendario en `America/Lima`. El año base corresponde al alta de la depreciación,
+no a la fecha de compra del bien. El método contable y sus tasas deben acordarse por separado con el
+responsable funcional antes de usarlos como valoración contable oficial.
+
+`ano_base` permanece fijo; `ano_actual` registra únicamente el último año calculado. Cada actualización
+parte del valor inicial, por lo que repetirla o calcular cada año produce el mismo resultado que calcular
+directamente el año final. Se aceptan importes entre cero y 9.999.999.999,99 y tasas entre 0 y 100 %, con
+hasta dos decimales. Omitir la tasa usa 20 %; indicar 0 % conserva expresamente esa tasa.
+
+Antes de usar el backend actualizado sobre una base existente, desde `backend` ejecute:
+
+```powershell
+npm run migrate:depreciacion
+```
+
+Esta migración también está incluida en `npm run migrate`. Recupera el año base desde `created_at`,
+protege ese año frente a cambios e impide nuevos valores inválidos. No recalcula importes históricos
+ni elimina registros duplicados. Si falta la fecha de creación, hay una cronología futura o inconsistente,
+o existen varias depreciaciones para un bien, se rechaza la actualización con HTTP 409 para su conciliación.
+Los registros importados deben revisarse si su fecha de creación no representa el inicio original.
+Después de revisar los importes afectados por el cálculo anterior, su recálculo se realiza mediante
+`PUT /api/depreciacion/:bienId`. El reporte admite bienes con valor inicial cero sin dividir entre cero.
+
+Las pruebas unitarias y la integración optativa se ejecutan con:
+
+```powershell
+npm run test:depreciacion
+$env:TEST_DEPRECIACION_DATABASE = '1'
+node --test tests/depreciacion.integration.test.js
+Remove-Item Env:TEST_DEPRECIACION_DATABASE
+```
+
+La integración crea y elimina únicamente un esquema temporal independiente; comprueba la migración,
+actualizaciones concurrentes, altas repetidas, restricciones SQL y el reporte con costo cero.
