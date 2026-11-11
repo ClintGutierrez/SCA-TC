@@ -1,12 +1,16 @@
 import { useEffect, useState } from 'react';
+import './NavBar.css';
 
-export default function NavBar({ currentUser, sidebarOpen, onProfileUpdate, onToggleSidebar, onLogout, title, description }) {
+export default function NavBar({ currentUser, sidebarOpen, onProfileUpdate, onToggleSidebar, onLogout, onHome, title }) {
   const [profileOpen, setProfileOpen] = useState(false);
   const [editingProfile, setEditingProfile] = useState(false);
   const [profileForm, setProfileForm] = useState({ nombre: '', email: '', departamento: '', password: '' });
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileError, setProfileError] = useState('');
   const [profileSuccess, setProfileSuccess] = useState('');
+  const userName = currentUser.nombre?.trim() || 'Mi cuenta';
+  const initials = userName.split(/\s+/).slice(0, 2).map((word) => Array.from(word)[0]).join('').toUpperCase();
+  const roleLabel = { administrador: 'Administrador', jefatura: 'Jefatura', tecnico: 'Técnico', auditor: 'Auditor', almacen: 'Almacén' }[currentUser.rol] || currentUser.rol;
 
   useEffect(() => {
     if (!profileOpen) {
@@ -60,56 +64,40 @@ export default function NavBar({ currentUser, sidebarOpen, onProfileUpdate, onTo
   };
 
   return (
-    <nav className="sticky top-0 z-30 border-b border-white/60 bg-white/75 text-slate-900 shadow-[0_10px_30px_rgba(15,23,42,0.06)] backdrop-blur-xl">
-      <div className="mx-auto flex max-w-[1800px] items-center gap-4 px-4 py-4 lg:px-6">
+    <header className="sca-topbar">
+      <div className="sca-topbar-inner">
         <button
           type="button"
           onClick={onToggleSidebar}
-          className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-700 shadow-sm transition hover:border-blue-200 hover:text-blue-700 lg:hidden"
+          className="topbar-menu-toggle"
           title={sidebarOpen ? 'Cerrar menú' : 'Abrir menú'}
           aria-label={sidebarOpen ? 'Cerrar menú' : 'Abrir menú'}
           aria-expanded={sidebarOpen}
           aria-controls="main-sidebar"
         >
-          <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+          <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
             {sidebarOpen
               ? <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 6l12 12M18 6L6 18" />
               : <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />}
           </svg>
         </button>
 
-        <div className="hidden h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-600 text-lg font-bold text-white shadow-lg shadow-blue-200 lg:flex">
-          T
-        </div>
+        <nav className="topbar-breadcrumb" aria-label="Ubicación actual">
+          <ol>
+            <li className="topbar-home">{onHome ? <button type="button" onClick={onHome}>Inicio</button> : <span>Inicio</span>}</li>
+            <li className="topbar-current">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true"><path d="m9 5 7 7-7 7" /></svg>
+              <span aria-current="page" title={title}>{title}</span>
+            </li>
+          </ol>
+        </nav>
 
-        <div className="min-w-0 flex-1">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-blue-600">Sistema de Inventario</p>
-          <h1 className="truncate text-lg font-semibold text-slate-900 lg:text-xl">{title}</h1>
-          <p className="mt-0.5 hidden text-sm text-slate-500 lg:block">{description}</p>
-        </div>
-
-        <div className="flex items-center gap-3 flex-shrink-0">
-          <button
-            type="button"
-            onClick={openProfile}
-            className="hidden rounded-2xl border border-slate-200 bg-white px-4 py-2 text-right shadow-sm transition hover:border-blue-200 hover:bg-blue-50 sm:block"
-            aria-label="Abrir perfil de usuario"
-          >
-            <p className="text-sm font-semibold text-slate-900">{currentUser.nombre}</p>
-            <p className="text-xs text-slate-500 capitalize">{currentUser.rol}</p>
-          </button>
-          <button
-            type="button"
-            onClick={openProfile}
-            className="flex h-11 w-11 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:border-blue-200 hover:text-blue-700"
-            title="Abrir perfil"
-            aria-label="Abrir perfil de usuario"
-          >
-            <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 24 24">
-              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z" />
-            </svg>
-          </button>
-        </div>
+        <button type="button" onClick={openProfile} className="topbar-profile" aria-label={'Abrir perfil de ' + userName}
+          aria-haspopup="dialog" aria-expanded={profileOpen} aria-controls={profileOpen ? 'user-profile-dialog' : undefined} title={userName + ' · ' + roleLabel}>
+          <span className="topbar-avatar" aria-hidden="true">{initials}</span>
+          <span className="topbar-user-copy"><span className="topbar-user-name">{userName}</span><span className="topbar-user-role">{roleLabel}</span></span>
+          <svg className="topbar-profile-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
+        </button>
       </div>
 
       {profileOpen && (
@@ -123,6 +111,7 @@ export default function NavBar({ currentUser, sidebarOpen, onProfileUpdate, onTo
           }}
         >
           <section
+            id="user-profile-dialog"
             className="w-full max-w-md rounded-[28px] border border-white/70 bg-white p-6 text-slate-900 shadow-[0_25px_80px_rgba(15,23,42,0.25)]"
             role="dialog"
             aria-modal="true"
@@ -196,6 +185,6 @@ export default function NavBar({ currentUser, sidebarOpen, onProfileUpdate, onTo
           </section>
         </div>
       )}
-    </nav>
+    </header>
   );
 }

@@ -1,8 +1,9 @@
 import Select from './Select';
-import { useState } from 'react';
+import { cloneElement, useId, useRef, useState } from 'react';
 import * as api from '../services/api';
 import { TIPOS, getTipo, GUIA_ESCANER, sugerirClasificacionEscaner } from '../utils/camposPorTipo';
 import { calcularGarantia } from '../utils/garantia';
+import './InventarioList.css';
 
 const MAC_REGEX = /^([0-9A-Fa-f]{2}[:-]){5}[0-9A-Fa-f]{2}$/;
 
@@ -81,18 +82,41 @@ const validar = (datos) => {
 };
 
 function Campo({ label, obligatorio, error, ancho, children }) {
+  const generatedId = useId();
+  const id = `register-${generatedId.replaceAll(':', '')}`;
+  const group = children.type === 'div';
+  const Label = group ? 'span' : 'label';
   return (
     <div className={ancho}>
-      <label className="block text-sm font-medium text-slate-700 mb-2">
+      <Label id={`${id}-label`} htmlFor={group ? undefined : id} className="inventory-register-label">
         {label}{obligatorio && ' *'}
-      </label>
-      {children}
-      {error && <p className="text-red-600 text-xs mt-1">{error}</p>}
+      </Label>
+      {cloneElement(children, {
+        id,
+        role: group ? 'group' : children.props.role,
+        tabIndex: group ? -1 : children.props.tabIndex,
+        required: !group && obligatorio ? true : undefined,
+        'aria-invalid': Boolean(error),
+        'aria-describedby': error ? `${id}-error` : undefined,
+        'aria-labelledby': group ? `${id}-label` : undefined,
+      })}
+      {error && <p id={`${id}-error`} role="alert" className="text-red-600 text-xs mt-1">{error}</p>}
     </div>
   );
 }
 
+function RegisterIcon({ name }) {
+  const paths = {
+    box: 'm12 3 9 5-9 5-9-5 9-5ZM3 8v9l9 5 9-5V8M12 13v9',
+    save: 'M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h12l4 4v12a2 2 0 0 1-2 2ZM7 3v6h10V3M7 21v-8h10v8',
+    loader: 'M12 3a9 9 0 1 1-9 9',
+    close: 'm6 6 12 12M6 18 18 6',
+  };
+  return <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={paths[name] || paths.box} /></svg>;
+}
+
 export default function RegistrarBien({ onSaved, onCancel }) {
+  const formRef = useRef(null);
   const [formData, setFormData] = useState(FORM_VACIO);
   const [errores, setErrores] = useState({});
   const [mensaje, setMensaje] = useState(null);
@@ -163,12 +187,14 @@ export default function RegistrarBien({ onSaved, onCancel }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (loading) return;
     setMensaje(null);
 
     const erroresLocales = validar(formData);
     setErrores(erroresLocales);
     if (Object.keys(erroresLocales).length > 0) {
       setMensaje({ tipo: 'error', texto: 'Complete correctamente los campos marcados en rojo' });
+      requestAnimationFrame(() => formRef.current?.querySelector('[aria-invalid="true"]')?.focus());
       return;
     }
 
@@ -201,12 +227,25 @@ export default function RegistrarBien({ onSaved, onCancel }) {
   };
 
   return (
-    <div className="bg-white rounded-xl shadow-md border border-slate-200 p-6 overflow-hidden">
-      <h3 className="text-xl font-bold text-slate-900 mb-6">Registrar Bien Informático</h3>
+    <div className="inventory-editor-inline inventory-register">
+    <section className="inventory-editor" aria-labelledby="register-asset-title">
+      <header className="inventory-editor-header">
+        <span className="inventory-editor-emblem"><RegisterIcon name="box" /></span>
+        <div className="inventory-editor-title">
+          <span className="inventory-editor-eyebrow">INVENTARIO / NUEVO BIEN</span>
+          <h3 id="register-asset-title">Registrar bien informático</h3>
+          <p>Completa los datos del equipo para incorporarlo al inventario.</p>
+        </div>
+        <button type="button" className="inventory-editor-close" onClick={onCancel} disabled={loading} aria-label="Cerrar registro"><RegisterIcon name="close" /></button>
+      </header>
+
+      <form ref={formRef} onSubmit={handleSubmit} className="inventory-editor-form" noValidate aria-busy={loading}>
+        <div className="inventory-editor-body">
 
       {mensaje && (
         <div
-          className={`mb-6 rounded-lg border px-4 py-3 text-sm font-medium ${
+          role={mensaje.tipo === 'exito' ? 'status' : 'alert'}
+          className={`mb-4 rounded-lg border px-4 py-3 text-sm font-medium ${
             mensaje.tipo === 'exito'
               ? 'border-green-200 bg-green-50 text-green-700'
               : 'border-red-200 bg-red-50 text-red-700'
@@ -216,19 +255,22 @@ export default function RegistrarBien({ onSaved, onCancel }) {
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="space-y-4" noValidate>
-        <p className="text-xs font-bold uppercase tracking-wide text-blue-700">
-          1. Información principal del bien informático
-        </p>
+        <fieldset className="inventory-editor-fields" disabled={loading}>
+          <legend className="sr-only">Datos del nuevo bien informático</legend>
+        <section className="inventory-editor-section" aria-labelledby="register-identification-title">
+          <div className="inventory-editor-section-heading">
+            <span>01</span>
+            <div><h4 id="register-identification-title">Identificación del equipo</h4><p>Código, serie y características generales del bien.</p></div>
+          </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Campo label="Código Patrimonial" obligatorio error={errores.codigoPatrimonial}>
+        <div className="inventory-editor-grid inventory-editor-grid--three">
+          <Campo label="Código patrimonial" obligatorio error={errores.codigoPatrimonial}>
             <input type="text" placeholder="PAT-2026-00123" {...campoProps('codigoPatrimonial')} />
           </Campo>
-          <Campo label="Número de Serie" obligatorio error={errores.numeroSerie}>
+          <Campo label="Número de serie" obligatorio error={errores.numeroSerie}>
             <input type="text" placeholder="SN-987654321-TC" {...campoProps('numeroSerie')} />
           </Campo>
-          <Campo label="Tipo de Bien" obligatorio error={errores.tipo}>
+          <Campo label="Tipo de bien" obligatorio error={errores.tipo}>
             <Select {...campoProps('tipo')}>
               <option value="">Selecciona tipo</option>
               {TIPOS.map((tipo) => (
@@ -238,7 +280,7 @@ export default function RegistrarBien({ onSaved, onCancel }) {
           </Campo>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="inventory-editor-grid inventory-editor-grid--three">
           <Campo label="Marca" obligatorio error={errores.marca}>
             <input type="text" placeholder="Dell" {...campoProps('marca')} />
           </Campo>
@@ -252,8 +294,15 @@ export default function RegistrarBien({ onSaved, onCancel }) {
           )}
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Campo label="Estado Inicial">
+        </section>
+
+        <section className="inventory-editor-section" aria-labelledby="register-purchase-title">
+          <div className="inventory-editor-section-heading">
+            <span>02</span>
+            <div><h4 id="register-purchase-title">Ubicación y compra</h4><p>El bien se registrará disponible en almacén, sin asignación.</p></div>
+          </div>
+        <div className="inventory-editor-grid inventory-editor-grid--three">
+          <Campo label="Estado inicial">
             <input
               type="text"
               value="Disponible / En Almacén"
@@ -261,22 +310,22 @@ export default function RegistrarBien({ onSaved, onCancel }) {
               className="w-full px-4 py-2.5 border border-slate-200 rounded-lg bg-slate-100 text-slate-600"
             />
           </Campo>
-          <Campo label="Ubicación / Sede Inicial" obligatorio error={errores.ubicacion}>
+          <Campo label="Ubicación / sede inicial" obligatorio error={errores.ubicacion}>
             <input type="text" placeholder="Sede Principal - Almacén TI" {...campoProps('ubicacion')} />
           </Campo>
-          <Campo label="Orden de Compra" error={errores.ordenCompra}>
+          <Campo label="Orden de compra" error={errores.ordenCompra}>
             <input type="text" placeholder="OC-2026-089" {...campoProps('ordenCompra')} />
           </Campo>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="inventory-editor-grid inventory-editor-grid--three">
           <Campo label="Valor (S/)" error={errores.valor}>
             <input type="number" placeholder="0.00" step="0.01" min="0" {...campoProps('valor')} />
           </Campo>
-          <Campo label="Fecha de Compra" obligatorio error={errores.fechaCompra}>
+          <Campo label="Fecha de compra" obligatorio error={errores.fechaCompra}>
             <input type="date" max={fechaLocalISO()} {...campoProps('fechaCompra')} />
           </Campo>
-          <Campo label="Años de Garantía" obligatorio error={errores.garantiaAnios}>
+          <Campo label="Años de garantía" obligatorio error={errores.garantiaAnios}>
             <input type="number" placeholder="0 si no tiene" min="0" max="10" step="1" {...campoProps('garantiaAnios')} />
           </Campo>
         </div>
@@ -288,14 +337,19 @@ export default function RegistrarBien({ onSaved, onCancel }) {
           </div>
         )}
 
-        <p className="text-xs font-bold uppercase tracking-wide text-blue-700 pt-2">
-          2. Especificaciones técnicas y detalles del equipo
-        </p>
+        </section>
+
+        <section className="inventory-editor-section" aria-labelledby="register-specifications-title">
+          <div className="inventory-editor-section-heading">
+            <span>03</span>
+            <div><h4 id="register-specifications-title">Especificaciones técnicas {tipoActual && <small>{tipoActual.label}</small>}</h4><p>Características y observaciones del equipo.</p></div>
+          </div>
 
         {!tipoActual && (
-          <p className="text-sm text-slate-500">
-            Selecciona un tipo de bien para ver sus especificaciones.
-          </p>
+          <div className="inventory-register-placeholder">
+            <RegisterIcon name="box" />
+            <div><strong>Selecciona el tipo de bien</strong><p>Los campos técnicos aparecerán según el equipo que elijas.</p></div>
+          </div>
         )}
 
         {tipoActual && tipoActual.campos.length === 0 && (
@@ -305,21 +359,22 @@ export default function RegistrarBien({ onSaved, onCancel }) {
         )}
 
         {tipoActual && tipoActual.campos.length > 0 && (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="inventory-editor-grid inventory-editor-grid--three">
             {tipoActual.campos.map((campo) => (
               <Campo
                 key={campo.name}
-                ancho={campo.completo ? 'md:col-span-3' : undefined}
+                ancho={campo.completo ? 'inventory-register-wide' : undefined}
                 label={campo.label}
                 obligatorio={campo.required}
                 error={errores[`detalles.${campo.name}`]}
               >
                 {campo.botones ? (
-                  <div className="flex gap-3">
+                  <div className="inventory-register-options">
                     {campo.options.map((opcion) => (
                       <button
                         type="button"
                         key={opcion}
+                        aria-pressed={formData.detalles[campo.name] === opcion}
                         onClick={() => seleccionarDetalle(campo.name, opcion)}
                         className={`flex-1 px-4 py-2.5 rounded-lg border text-sm font-semibold transition ${
                           formData.detalles[campo.name] === opcion
@@ -374,7 +429,9 @@ export default function RegistrarBien({ onSaved, onCancel }) {
         )}
 
         {esEscaner && (
-          <div className="overflow-x-auto rounded-lg border border-slate-200">
+          <details className="inventory-register-guide">
+            <summary>Guía para clasificar el escáner</summary>
+          <div className="overflow-x-auto">
             <table className="w-full text-xs">
               <thead className="bg-slate-100 text-slate-700">
                 <tr>
@@ -394,34 +451,37 @@ export default function RegistrarBien({ onSaved, onCancel }) {
               </tbody>
             </table>
           </div>
+          </details>
         )}
 
         <Campo label="Observaciones" error={errores.especificaciones}>
           <textarea
             placeholder="Detalles adicionales del equipo..."
-            rows="3"
+            rows="2"
             {...campoProps('especificaciones')}
           />
         </Campo>
 
-        <div className="flex gap-3 pt-4 border-t border-slate-200">
+        </section>
+        </fieldset>
+        </div>
+
+        <footer className="inventory-editor-footer">
+          <p><span>*</span> Campos obligatorios</p>
+          <div className="inventory-editor-buttons">
+          <button type="button" onClick={onCancel} className="inventory-editor-cancel" disabled={loading}>Cancelar</button>
           <button
             type="submit"
-            className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-lg font-semibold transition-all duration-200 disabled:opacity-50"
+            className="inventory-editor-save"
             disabled={loading}
           >
-            {loading ? '⏳ Guardando...' : '💾 Guardar Bien Informático'}
+            <RegisterIcon name={loading ? 'loader' : 'save'} />
+            {loading ? 'Guardando...' : 'Registrar bien'}
           </button>
-          <button
-            type="button"
-            onClick={onCancel}
-            className="bg-slate-300 hover:bg-slate-400 text-slate-800 px-6 py-2.5 rounded-lg font-semibold transition-all duration-200"
-            disabled={loading}
-          >
-            ✕ Cancelar
-          </button>
-        </div>
+          </div>
+        </footer>
       </form>
+    </section>
     </div>
   );
 }

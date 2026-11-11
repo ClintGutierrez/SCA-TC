@@ -1,7 +1,10 @@
 import Select from './Select';
-import { useState } from 'react';
+import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import * as api from '../services/api';
+import { filtrarInventario, paginarInventario, prepararInventario } from '../utils/inventario';
+import TablaInventario from './InventarioTabla';
+import './InventarioList.css';
 
 const ModalPortal = ({ enabled, children }) => (
   enabled && typeof document !== 'undefined'
@@ -184,7 +187,7 @@ const formatSpecLabel = (key) => SPEC_LABELS[key] || key.replaceAll('_', ' ').re
 
 function validateField(name, value) {
   const errors = {};
-  if (['nombre', 'tipo', 'fechaAdquisicion', 'costo'].includes(name) && !value) {
+  if (['nombre', 'tipo', 'fechaAdquisicion', 'costo'].includes(name) && (value == null || String(value).trim() === '')) {
     errors[name] = 'Este campo es obligatorio';
   }
   if (name === 'direccionMac' && value && !/^([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}$/.test(value)) {
@@ -215,18 +218,8 @@ function fieldClass(hasError) {
   }`;
 }
 
-function Icon({ name, className = 'h-4 w-4' }) {
-  const common = {
-    fill: 'none',
-    stroke: 'currentColor',
-    strokeLinecap: 'round',
-    strokeLinejoin: 'round',
-    strokeWidth: 1.75,
-    viewBox: '0 0 24 24',
-    className,
-    'aria-hidden': true,
-  };
-  const icons = {
+const INVENTORY_ICONS = {
+    search: <><circle cx="10.5" cy="10.5" r="6.5" /><path d="m16 16 4 4" /></>,
     eye: <><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7Z" /><circle cx="12" cy="12" r="3" /></>,
     plus: <><circle cx="12" cy="12" r="9" /><path d="M12 8v8M8 12h8" /></>,
     loader: <><path d="M21 12a9 9 0 1 1-2.64-6.36" /><path d="M21 3v6h-6" /></>,
@@ -252,7 +245,20 @@ function Icon({ name, className = 'h-4 w-4' }) {
     filter: <><path d="M4 6h16M7 12h10m-7 6h4" /><circle cx="8" cy="6" r="1" /><circle cx="14" cy="12" r="1" /><circle cx="11" cy="18" r="1" /></>,
   };
 
-  return <svg {...common}>{icons[name]}</svg>;
+function Icon({ name, className = 'h-4 w-4' }) {
+  const common = {
+    fill: 'none',
+    stroke: 'currentColor',
+    strokeLinecap: 'round',
+    strokeLinejoin: 'round',
+    strokeWidth: 1.75,
+    viewBox: '0 0 24 24',
+    className,
+    'aria-hidden': true,
+  };
+
+
+  return <svg {...common}>{INVENTORY_ICONS[name]}</svg>;
 }
 
 function DetailGrid({ rows }) {
@@ -293,7 +299,9 @@ function specificationRows(specifications) {
     ]);
 }
 
-export default function InventarioList({ bienes, onRefresh, canCreate, canEdit, canDelete }) {
+export default function InventarioList({ bienes, onRefresh, canCreate, canEdit, canDelete, onCreate, registrationOpen = false, children }) {
+  const editorRef = useRef(null);
+  const closeEditorRef = useRef(null);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -321,6 +329,8 @@ export default function InventarioList({ bienes, onRefresh, canCreate, canEdit, 
   const [filtroEspecificacion, setFiltroEspecificacion] = useState('');
   const [filtrosTecnicos, setFiltrosTecnicos] = useState({});
   const [filtrosAvanzados, setFiltrosAvanzados] = useState(false);
+  const [pageSize, setPageSize] = useState(25);
+  const [pagination, setPagination] = useState({ page: 1, filters: null });
   const [formErrors, setFormErrors] = useState({});
   const [formData, setFormData] = useState({
     nombre: '',
@@ -391,15 +401,54 @@ export default function InventarioList({ bienes, onRefresh, canCreate, canEdit, 
     setShowForm(false);
   };
 
+  closeEditorRef.current = () => { if (!loading) resetForm(); };
+
+  useEffect(() => {
+    if (!showForm || !editingId) return;
+    const previousFocus = document.activeElement;
+    const previousOverflow = document.body.style.overflow;
+    const appRoot = document.getElementById('root');
+    const previousInert = appRoot?.inert;
+    document.body.style.overflow = 'hidden';
+    if (appRoot) appRoot.inert = true;
+    editorRef.current?.querySelector('[name="nombre"]')?.focus();
+    const keydown = (event) => {
+      if (event.defaultPrevented) return;
+      if (event.key === 'Escape') { event.preventDefault(); closeEditorRef.current?.(); }
+      if (event.key !== 'Tab' || document.querySelector('.sca-select-panel')) return;
+      const elements = [...editorRef.current.querySelectorAll('button, input, select, textarea, [tabindex="0"]')]
+        .filter((element) => !element.matches(':disabled') && element.tabIndex >= 0 && element.getClientRects().length);
+      const first = elements[0];
+      const last = elements.at(-1);
+      if (!first) { event.preventDefault(); return; }
+      if (event.shiftKey && (document.activeElement === first || !editorRef.current.contains(document.activeElement))) {
+        event.preventDefault(); last.focus();
+      } else if (!event.shiftKey && (document.activeElement === last || !editorRef.current.contains(document.activeElement))) {
+        event.preventDefault(); first.focus();
+      }
+    };
+    document.addEventListener('keydown', keydown);
+    return () => {
+      document.removeEventListener('keydown', keydown);
+      document.body.style.overflow = previousOverflow;
+      if (appRoot) appRoot.inert = previousInert;
+      if (previousFocus?.isConnected) previousFocus.focus({ preventScroll: true });
+    };
+  }, [showForm, editingId]);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (loading) return;
     const fieldsToValidate = ['nombre', 'tipo', 'fechaAdquisicion', 'costo', 'direccionMac', 'imagenUrl', 'numeroSerie'];
     const errors = fieldsToValidate.reduce((allErrors, name) => ({
       ...allErrors,
       ...validateField(name, formData[name]),
     }), {});
     setFormErrors(errors);
-    if (Object.keys(errors).length > 0) return;
+    if (Object.keys(errors).length > 0) {
+      requestAnimationFrame(() => editorRef.current?.querySelector('[aria-invalid="true"]')?.focus());
+      return;
+    }
 
     setLoading(true);
     try {
@@ -419,7 +468,7 @@ export default function InventarioList({ bienes, onRefresh, canCreate, canEdit, 
     }
   };
 
-  const handleEdit = (bien) => {
+  const handleEdit = useCallback((bien) => {
     const parsedSpecifications = typeof bien.especificaciones === 'string'
       ? JSON.parse(bien.especificaciones)
       : bien.especificaciones;
@@ -446,9 +495,9 @@ export default function InventarioList({ bienes, onRefresh, canCreate, canEdit, 
     setFormErrors({});
     setEditingId(bien.id);
     setShowForm(true);
-  };
+  }, []);
 
-  const handleShowHistory = async (bien) => {
+  const handleShowHistory = useCallback(async (bien) => {
     setHistoryBien(bien);
     setHistory([]);
     setHistoryLoading(true);
@@ -462,14 +511,14 @@ export default function InventarioList({ bienes, onRefresh, canCreate, canEdit, 
     } finally {
       setHistoryLoading(false);
     }
-  };
+  }, []);
 
-  const handleDelete = async (id) => {
+  const handleDelete = useCallback(async (id) => {
     if (window.confirm('¿Estás seguro de que deseas eliminar este bien?')) {
       setLoading(true);
       try {
         await api.deleteBien(id);
-        onRefresh();
+        await onRefresh();
       } catch (error) {
         console.error('Error:', error);
         alert('Error al eliminar el bien');
@@ -477,7 +526,7 @@ export default function InventarioList({ bienes, onRefresh, canCreate, canEdit, 
         setLoading(false);
       }
     }
-  };
+  }, [onRefresh]);
 
   const hayFiltros = filtroBusqueda || filtroCodigo || filtroSerie || filtroMarca || filtroModelo
     || filtroOrdenCompra || filtroMac || filtroTipo || filtroEstado || filtroUbicacion
@@ -486,68 +535,24 @@ export default function InventarioList({ bienes, onRefresh, canCreate, canEdit, 
   const hayFiltrosTecnicos = filtroEspecificacion
     || Object.values(filtrosTecnicos).some(Boolean);
   const hayFiltrosTotales = hayFiltros || hayFiltrosTecnicos;
-  const contiene = (value, query) => !query
-    || String(value || '').toLowerCase().includes(query.trim().toLowerCase());
-  const especificacionesDe = (bien) => {
-    const parse = (value) => {
-      if (!value) return {};
-      if (typeof value === 'object' && !Array.isArray(value)) return value;
-      try {
-        const parsed = JSON.parse(value);
-        return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
-      } catch {
-        return {};
-      }
-    };
-    return { ...parse(bien.especificaciones), ...parse(bien.detalles) };
-  };
-  const bienesFiltrados = bienes.filter((bien) => {
-    const busqueda = filtroBusqueda.trim().toLowerCase();
-    const coincideBusqueda = !busqueda || [
-      bien.codigo_patrimonial,
-      bien.nombre,
-      bien.numero_serie,
-      bien.marca,
-      bien.modelo,
-      bien.orden_compra,
-    ].some((value) => String(value || '').toLowerCase().includes(busqueda));
-    const costo = Number(bien.costo);
-    const coincideCostoMin = !filtroCostoMin || (!Number.isNaN(costo) && costo >= Number(filtroCostoMin));
-    const coincideCostoMax = !filtroCostoMax || (!Number.isNaN(costo) && costo <= Number(filtroCostoMax));
-    const fechaAdquisicion = String(bien.fecha_adquisicion || '').slice(0, 10);
-    const garantiaAnios = Number(bien.garantia_anios);
-    const tieneGarantia = Number.isFinite(garantiaAnios) && garantiaAnios > 0;
-    const specs = especificacionesDe(bien);
-    const textoSpecs = Object.entries(specs)
-      .map(([key, value]) => `${key} ${value}`)
-      .join(' ');
-    const coincideFiltrosTecnicos = Object.entries(filtrosTecnicos).every(([key, query]) => (
-      contiene(specs[key], query)
-    ));
-    const coincideAsignacion = !filtroAsignacion
-      || (filtroAsignacion === 'asignado' && Boolean(bien.usuario_asignado))
-      || (filtroAsignacion === 'disponible' && !bien.usuario_asignado);
-    return coincideBusqueda
-      && contiene(bien.codigo_patrimonial, filtroCodigo)
-      && contiene(bien.numero_serie, filtroSerie)
-      && contiene(bien.marca, filtroMarca)
-      && contiene(bien.modelo, filtroModelo)
-      && contiene(bien.orden_compra, filtroOrdenCompra)
-      && contiene(bien.direccion_mac, filtroMac)
-      && (!filtroTipo || bien.tipo === filtroTipo)
-      && (!filtroEstado || bien.estado === filtroEstado)
-      && contiene(bien.ubicacion, filtroUbicacion)
-      && coincideAsignacion
-      && coincideCostoMin
-      && coincideCostoMax
-      && (!filtroFechaDesde || fechaAdquisicion >= filtroFechaDesde)
-      && (!filtroFechaHasta || fechaAdquisicion <= filtroFechaHasta)
-      && (!filtroGarantia
-        || (filtroGarantia === 'con_garantia' && tieneGarantia)
-        || (filtroGarantia === 'sin_garantia' && !tieneGarantia))
-      && contiene(textoSpecs, filtroEspecificacion)
-      && coincideFiltrosTecnicos;
-  });
+  const inventoryIndex = useMemo(() => prepararInventario(bienes), [bienes]);
+  const filters = useMemo(() => ({
+    busqueda: filtroBusqueda, codigo: filtroCodigo, serie: filtroSerie, marca: filtroMarca,
+    modelo: filtroModelo, ordenCompra: filtroOrdenCompra, mac: filtroMac, tipo: filtroTipo,
+    estado: filtroEstado, ubicacion: filtroUbicacion, asignacion: filtroAsignacion,
+    costoMin: filtroCostoMin, costoMax: filtroCostoMax, fechaDesde: filtroFechaDesde,
+    fechaHasta: filtroFechaHasta, garantia: filtroGarantia, especificacion: filtroEspecificacion,
+    tecnicos: filtrosTecnicos,
+  }), [filtroBusqueda, filtroCodigo, filtroSerie, filtroMarca, filtroModelo, filtroOrdenCompra,
+    filtroMac, filtroTipo, filtroEstado, filtroUbicacion, filtroAsignacion, filtroCostoMin,
+    filtroCostoMax, filtroFechaDesde, filtroFechaHasta, filtroGarantia, filtroEspecificacion, filtrosTecnicos]);
+  const deferredFilters = useDeferredValue(filters);
+  const updatingFilters = filters !== deferredFilters;
+  const bienesFiltrados = useMemo(() => filtrarInventario(inventoryIndex, deferredFilters), [inventoryIndex, deferredFilters]);
+  // Los filtros nuevos comienzan en la primera página sin un render adicional.
+  const requestedPage = pagination.filters === deferredFilters ? pagination.page : 1;
+  const page = useMemo(() => paginarInventario(bienesFiltrados, requestedPage, pageSize), [bienesFiltrados, requestedPage, pageSize]);
+  const goToPage = (number) => setPagination({ page: number, filters: deferredFilters });
 
   const limpiarFiltros = () => {
     setFiltroBusqueda('');
@@ -571,27 +576,30 @@ export default function InventarioList({ bienes, onRefresh, canCreate, canEdit, 
   };
 
   return (
-    <div className="space-y-6">
+    <div className="inventory-list">
       {/* Header */}
-      <div className="flex justify-between items-center">
+      <header className="inventory-header">
         <div>
-          <h1 className="text-4xl font-bold text-slate-900">Inventario de Bienes</h1>
-          <p className="text-slate-600 mt-2">Total: {bienesFiltrados.length} equipos</p>
+          <h1>Inventario de bienes</h1>
+          <p>{bienes.length.toLocaleString('es-PE')} bienes registrados</p>
         </div>
-        {canCreate ? (
+        {canCreate && !registrationOpen ? (
           <button
-            onClick={() => setShowForm(!showForm)}
-            className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white px-6 py-3 rounded-lg font-semibold shadow-md hover:shadow-lg transition-all duration-200 flex items-center gap-2"
+            type="button"
+            onClick={() => onCreate ? onCreate() : setShowForm(!showForm)}
+            className="inventory-create-button"
             disabled={loading}
           >
-            <Icon name="plus" className="h-5 w-5" /> Agregar Equipo
+            <Icon name="plus" /> Registrar bien
           </button>
-        ) : (
-          <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-500 shadow-sm">
-            Modo lectura para tu perfil
+        ) : !canCreate && !canEdit && !canDelete ? (
+          <div className="inventory-read-only">
+            Solo lectura
           </div>
-        )}
-      </div>
+        ) : null}
+      </header>
+
+      {children}
 
       {/* Formulario */}
       {successMessage && (
@@ -605,47 +613,51 @@ export default function InventarioList({ bienes, onRefresh, canCreate, canEdit, 
 
       {showForm && (canCreate || canEdit) && (
         <ModalPortal enabled={Boolean(editingId)}>
-          <div
-            className={editingId ? 'fixed inset-0 z-50 flex h-[100dvh] min-h-0 items-center justify-center overflow-hidden bg-slate-950/60 p-4' : ''}
-            role={editingId ? 'presentation' : undefined}
-            onClick={editingId ? (event) => {
-              if (event.target === event.currentTarget) resetForm();
-            } : undefined}
-          >
-            <section
-              className={`bg-white rounded-xl shadow-md border border-slate-200 p-6 overflow-hidden ${editingId ? 'flex max-h-[calc(100dvh-2rem)] w-full max-w-4xl flex-col' : ''}`}
-              role={editingId ? 'dialog' : undefined}
-              aria-modal={editingId ? 'true' : undefined}
-              aria-labelledby="asset-form-title"
-            >
-          <h3 id="asset-form-title" className={`shrink-0 text-xl font-bold text-slate-900 ${editingId ? 'mb-4 border-b border-slate-200 pb-4' : 'mb-6'}`}>
-            {editingId ? 'Actualizar Ficha Técnica de Bien Informático' : 'Registrar Nuevo Bien'}
-          </h3>
-          <form onSubmit={handleSubmit} noValidate className={`space-y-4 ${editingId ? 'min-h-0 overflow-y-auto overscroll-contain pr-2' : ''}`}>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className={editingId ? 'inventory-editor-overlay' : 'inventory-editor-inline'}
+            onClick={editingId ? (event) => { if (event.target === event.currentTarget && !loading) resetForm(); } : undefined}>
+            <section ref={editorRef} className="inventory-editor"
+              role={editingId ? 'dialog' : undefined} aria-modal={editingId ? true : undefined}
+              aria-labelledby="asset-form-title" aria-describedby="asset-form-description">
+              <header className="inventory-editor-header">
+                <span className="inventory-editor-emblem"><Icon name="edit" /></span>
+                <div className="inventory-editor-title">
+                  <span className="inventory-editor-eyebrow">INVENTARIO / FICHA DEL BIEN</span>
+                  <h3 id="asset-form-title">{editingId ? 'Editar ficha técnica' : 'Registrar nuevo bien'}</h3>
+                  <p id="asset-form-description">{editingId ? (formData.codigoPatrimonial || 'Sin código patrimonial') : 'Completa los datos del equipo para registrarlo.'}</p>
+                </div>
+                <button type="button" className="inventory-editor-close" onClick={resetForm} disabled={loading} aria-label="Cerrar formulario"><Icon name="close" /></button>
+              </header>
+              <form onSubmit={handleSubmit} noValidate className="inventory-editor-form" aria-busy={loading}>
+                <div className="inventory-editor-body">
+                <fieldset className="inventory-editor-fields" disabled={loading}>
+                  <legend className="sr-only">Datos de la ficha técnica</legend>
+            <section className="inventory-editor-section">
+              <div className="inventory-editor-section-heading"><span>01</span><div><h4>Identificación del equipo</h4><p>Datos generales para reconocer el bien.</p></div></div>
+            <div className="inventory-editor-grid inventory-editor-grid--two">
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">Nombre *</label>
+                <label htmlFor="asset-nombre" className="block text-sm font-medium text-slate-700 mb-2">Nombre *</label>
                 <input
                   type="text"
-                  name="nombre"
+                  id="asset-nombre" name="nombre" required
+                  aria-invalid={Boolean(formErrors.nombre)}
+                  aria-describedby={formErrors.nombre ? 'asset-nombre-error' : undefined}
                   placeholder="Nombre del equipo"
                   value={formData.nombre ?? ''}
                   onChange={handleInputChange}
                   onBlur={handleFieldBlur}
-                  onFocus={() => setFormErrors(prev => ({ ...prev, nombre: undefined }))}
-                  autoFocus={Boolean(editingId)}
                   className={fieldClass(Boolean(formErrors.nombre))}
                 />
-                {formErrors.nombre && <p className="mt-1 text-xs text-red-600">{formErrors.nombre}</p>}
+                {formErrors.nombre && <p id="asset-nombre-error" role="alert" className="mt-1 text-xs text-red-600">{formErrors.nombre}</p>}
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">Tipo *</label>
+                <label htmlFor="asset-tipo" className="block text-sm font-medium text-slate-700 mb-2">Tipo *</label>
                 <Select
-                  name="tipo"
+                  id="asset-tipo" name="tipo" required
+                  aria-invalid={Boolean(formErrors.tipo)}
+                  aria-describedby={formErrors.tipo ? 'asset-tipo-error' : undefined}
                   value={formData.tipo ?? ''}
                   onChange={handleInputChange}
                   onBlur={handleFieldBlur}
-                  onFocus={() => setFormErrors(prev => ({ ...prev, tipo: undefined }))}
                   className={fieldClass(Boolean(formErrors.tipo))}
                 >
                   <option value="">Selecciona tipo</option>
@@ -664,16 +676,16 @@ export default function InventarioList({ bienes, onRefresh, canCreate, canEdit, 
                   <option value="camara">Camara</option>
                   <option value="otro">Otro</option>
                 </Select>
-                {formErrors.tipo && <p className="mt-1 text-xs text-red-600">{formErrors.tipo}</p>}
+                {formErrors.tipo && <p id="asset-tipo-error" role="alert" className="mt-1 text-xs text-red-600">{formErrors.tipo}</p>}
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="inventory-editor-grid inventory-editor-grid--three">
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">Marca</label>
+                <label htmlFor="asset-marca" className="block text-sm font-medium text-slate-700 mb-2">Marca</label>
                 <input
                   type="text"
-                  name="marca"
+                  id="asset-marca" name="marca"
                   placeholder="Marca"
                   value={formData.marca ?? ''}
                   onChange={handleInputChange}
@@ -681,10 +693,10 @@ export default function InventarioList({ bienes, onRefresh, canCreate, canEdit, 
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">Modelo</label>
+                <label htmlFor="asset-modelo" className="block text-sm font-medium text-slate-700 mb-2">Modelo</label>
                 <input
                   type="text"
-                  name="modelo"
+                  id="asset-modelo" name="modelo"
                   placeholder="Modelo"
                   value={formData.modelo ?? ''}
                   onChange={handleInputChange}
@@ -692,42 +704,42 @@ export default function InventarioList({ bienes, onRefresh, canCreate, canEdit, 
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">Serie</label>
+                <label htmlFor="asset-numeroSerie" className="block text-sm font-medium text-slate-700 mb-2">Serie</label>
                 <input
                   type="text"
-                  name="numeroSerie"
+                  id="asset-numeroSerie" name="numeroSerie"
+                  aria-invalid={Boolean(formErrors.numeroSerie)}
+                  aria-describedby={formErrors.numeroSerie ? 'asset-numeroSerie-error' : undefined}
                   placeholder="Número de serie"
                   value={formData.numeroSerie ?? ''}
                   onChange={handleInputChange}
                   onBlur={handleFieldBlur}
-                  onFocus={() => setFormErrors(prev => ({ ...prev, numeroSerie: undefined }))}
                   className={fieldClass(Boolean(formErrors.numeroSerie))}
                 />
-                {formErrors.numeroSerie && <p className="mt-1 text-xs text-red-600">{formErrors.numeroSerie}</p>}
+                {formErrors.numeroSerie && <p id="asset-numeroSerie-error" role="alert" className="mt-1 text-xs text-red-600">{formErrors.numeroSerie}</p>}
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">Descripción</label>
+              <label htmlFor="asset-descripcion" className="block text-sm font-medium text-slate-700 mb-2">Descripción</label>
               <textarea
-                name="descripcion"
+                id="asset-descripcion" name="descripcion"
                 placeholder="Descripción del equipo"
                 value={formData.descripcion ?? ''}
                 onChange={handleInputChange}
                 className="w-full px-4 py-2.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
-                rows="3"
+                rows="2"
               />
             </div>
 
+            </section>
             {SPECS_POR_TIPO[formData.tipo] && (
-              <section className="space-y-4 border-t border-slate-200 pt-5">
-                <div>
-                  <h4 className="text-lg font-semibold text-slate-900">
-                    Especificaciones Tecnicas - {TIPOS_DISPONIBLES.find(({ value }) => value === formData.tipo)?.label || formData.tipo}
-                  </h4>
-                  <p className="mt-1 text-sm text-slate-500">Los campos se adaptan segun el tipo seleccionado.</p>
-                </div>
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <section className="inventory-editor-section">
+                <div className="inventory-editor-section-heading"><span>02</span><div>
+                  <h4>Especificaciones técnicas <small>{TIPOS_DISPONIBLES.find(({ value }) => value === formData.tipo)?.label || formData.tipo}</small></h4>
+                  <p>Completa las características del tipo de equipo seleccionado.</p>
+                </div></div>
+                <div className="inventory-editor-grid inventory-editor-grid--two">
                   {SPECS_POR_TIPO[formData.tipo].map((spec) => (
                     <div key={spec.key}>
                       <label htmlFor={`spec-${spec.key}`} className="mb-2 flex items-center gap-2 text-sm font-medium text-slate-700">
@@ -765,85 +777,59 @@ export default function InventarioList({ bienes, onRefresh, canCreate, canEdit, 
               </section>
             )}
 
-            <section className="space-y-4 border-t border-slate-200 pt-5">
-              <h4 className="text-lg font-semibold text-slate-900">Datos Adicionales</h4>
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <section className="inventory-editor-section">
+              <div className="inventory-editor-section-heading"><span>03</span><div><h4>Control patrimonial</h4><p>Datos de compra, responsable y ubicación.</p></div></div>
+              <div className="inventory-editor-grid inventory-editor-grid--two">
                 <div>
-                  <label className="mb-2 block text-sm font-medium text-slate-700">Imagen (URL)</label>
-                  <input
-                    type="url"
-                    name="imagenUrl"
-                    placeholder="https://..."
-                    value={formData.imagenUrl ?? ''}
-                    onChange={handleInputChange}
-                    onBlur={handleFieldBlur}
-                    onFocus={() => setFormErrors(prev => ({ ...prev, imagenUrl: undefined }))}
-                    className={fieldClass(Boolean(formErrors.imagenUrl))}
-                  />
-                  {formErrors.imagenUrl && <p className="mt-1 text-xs text-red-600">{formErrors.imagenUrl}</p>}
+                  <label htmlFor="asset-codigoPatrimonial" className="mb-2 block text-sm font-medium text-slate-700">Código patrimonial</label>
+                  <input type="text" id="asset-codigoPatrimonial" name="codigoPatrimonial" placeholder="PAT-LAP-002" value={formData.codigoPatrimonial ?? ''} onChange={handleInputChange} className={fieldClass(false)} />
                 </div>
                 <div>
-                  <label className="mb-2 block text-sm font-medium text-slate-700">Codigo Patrimonial</label>
-                  <input type="text" name="codigoPatrimonial" placeholder="PAT-LAP-002" value={formData.codigoPatrimonial ?? ''} onChange={handleInputChange} className={fieldClass(false)} />
-                </div>
-                <div>
-                  <label className="mb-2 block text-sm font-medium text-slate-700">Direccion MAC</label>
-                  <input
-                    type="text"
-                    name="direccionMac"
-                    placeholder="AA:BB:CC:DD:EE:FF"
-                    value={formData.direccionMac ?? ''}
-                    onChange={handleInputChange}
-                    onBlur={handleFieldBlur}
-                    onFocus={() => setFormErrors(prev => ({ ...prev, direccionMac: undefined }))}
-                    className={fieldClass(Boolean(formErrors.direccionMac))}
-                  />
-                  {formErrors.direccionMac && <p className="mt-1 text-xs text-red-600">{formErrors.direccionMac}</p>}
-                </div>
-                <div>
-                  <label className="mb-2 block text-sm font-medium text-slate-700">Orden de Compra</label>
-                  <input type="text" name="ordenCompra" placeholder="OC-2026-0045" value={formData.ordenCompra ?? ''} onChange={handleInputChange} className={fieldClass(false)} />
+                  <label htmlFor="asset-ordenCompra" className="mb-2 block text-sm font-medium text-slate-700">Orden de compra</label>
+                  <input type="text" id="asset-ordenCompra" name="ordenCompra" placeholder="OC-2026-0045" value={formData.ordenCompra ?? ''} onChange={handleInputChange} className={fieldClass(false)} />
                 </div>
               </div>
-            </section>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+            <div className="inventory-editor-grid inventory-editor-grid--two">
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">Fecha de Adquisición *</label>
+                <label htmlFor="asset-fechaAdquisicion" className="block text-sm font-medium text-slate-700 mb-2">Fecha de adquisición *</label>
                 <input
                   type="date"
-                  name="fechaAdquisicion"
+                  id="asset-fechaAdquisicion" name="fechaAdquisicion" required
+                  aria-invalid={Boolean(formErrors.fechaAdquisicion)}
+                  aria-describedby={formErrors.fechaAdquisicion ? 'asset-fechaAdquisicion-error' : undefined}
                   value={formData.fechaAdquisicion ?? ''}
                   onChange={handleInputChange}
                   onBlur={handleFieldBlur}
-                  onFocus={() => setFormErrors(prev => ({ ...prev, fechaAdquisicion: undefined }))}
                   className={fieldClass(Boolean(formErrors.fechaAdquisicion))}
                 />
-                {formErrors.fechaAdquisicion && <p className="mt-1 text-xs text-red-600">{formErrors.fechaAdquisicion}</p>}
+                {formErrors.fechaAdquisicion && <p id="asset-fechaAdquisicion-error" role="alert" className="mt-1 text-xs text-red-600">{formErrors.fechaAdquisicion}</p>}
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">Costo (S/) *</label>
+                <label htmlFor="asset-costo" className="block text-sm font-medium text-slate-700 mb-2">Costo (S/) *</label>
                 <input
                   type="number"
-                  name="costo"
+                  id="asset-costo" name="costo" required
+                  aria-invalid={Boolean(formErrors.costo)}
+                  aria-describedby={formErrors.costo ? 'asset-costo-error' : undefined}
                   placeholder="0.00"
-                  step="0.01"
+                  step="0.01" min="0"
                   value={formData.costo ?? ''}
                   onChange={handleInputChange}
                   onBlur={handleFieldBlur}
-                  onFocus={() => setFormErrors(prev => ({ ...prev, costo: undefined }))}
                   className={fieldClass(Boolean(formErrors.costo))}
                 />
-                {formErrors.costo && <p className="mt-1 text-xs text-red-600">{formErrors.costo}</p>}
+                {formErrors.costo && <p id="asset-costo-error" role="alert" className="mt-1 text-xs text-red-600">{formErrors.costo}</p>}
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="inventory-editor-grid inventory-editor-grid--two">
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">Usuario Asignado</label>
+                <label htmlFor="asset-usuarioAsignado" className="block text-sm font-medium text-slate-700 mb-2">Asignado a</label>
                 <input
                   type="text"
-                  name="usuarioAsignado"
+                  id="asset-usuarioAsignado" name="usuarioAsignado"
                   placeholder="Usuario o departamento"
                   value={formData.usuarioAsignado ?? ''}
                   onChange={handleInputChange}
@@ -851,10 +837,10 @@ export default function InventarioList({ bienes, onRefresh, canCreate, canEdit, 
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">Ubicación</label>
+                <label htmlFor="asset-ubicacion" className="block text-sm font-medium text-slate-700 mb-2">Ubicación</label>
                 <input
                   type="text"
-                  name="ubicacion"
+                  id="asset-ubicacion" name="ubicacion"
                   placeholder="Ubicación física"
                   value={formData.ubicacion ?? ''}
                   onChange={handleInputChange}
@@ -863,45 +849,76 @@ export default function InventarioList({ bienes, onRefresh, canCreate, canEdit, 
               </div>
             </div>
 
-            <div className="flex gap-3 pt-4 border-t border-slate-200">
-              <button
-                type="submit"
-                className="bg-green-600 hover:bg-green-700 text-white px-6 py-2.5 rounded-lg font-semibold transition-all duration-200 disabled:opacity-50"
-                disabled={loading}
-              >
-                <span className="inline-flex items-center gap-2">
-                  <Icon name={loading ? 'loader' : 'save'} />
-                  {loading ? 'Guardando...' : editingId ? 'Guardar cambios' : 'Guardar'}
-                </span>
-              </button>
-              <button
-                type="button"
-                onClick={resetForm}
-                className="bg-slate-300 hover:bg-slate-400 text-slate-800 px-6 py-2.5 rounded-lg font-semibold transition-all duration-200"
-              >
-                <span className="inline-flex items-center gap-2"><Icon name="close" /> Cancelar</span>
-              </button>
-            </div>
-          </form>
+            </section>
+            <section className="inventory-editor-section">
+              <div className="inventory-editor-section-heading"><Icon name="pin" /><div><h4>Información complementaria</h4><p>Datos opcionales de referencia.</p></div></div>
+              <div className="inventory-editor-grid inventory-editor-grid--two">
+                <div>
+                  <label htmlFor="asset-direccionMac" className="mb-2 block text-sm font-medium text-slate-700">Dirección MAC</label>
+                  <input
+                    type="text"
+                    id="asset-direccionMac" name="direccionMac"
+                  aria-invalid={Boolean(formErrors.direccionMac)}
+                  aria-describedby={formErrors.direccionMac ? 'asset-direccionMac-error' : undefined}
+                    placeholder="AA:BB:CC:DD:EE:FF"
+                    value={formData.direccionMac ?? ''}
+                    onChange={handleInputChange}
+                    onBlur={handleFieldBlur}
+                    className={fieldClass(Boolean(formErrors.direccionMac))}
+                  />
+                  {formErrors.direccionMac && <p id="asset-direccionMac-error" role="alert" className="mt-1 text-xs text-red-600">{formErrors.direccionMac}</p>}
+                </div>
+                <div>
+                  <label htmlFor="asset-imagenUrl" className="mb-2 block text-sm font-medium text-slate-700">Imagen (URL)</label>
+                  <input
+                    type="url"
+                    id="asset-imagenUrl" name="imagenUrl"
+                  aria-invalid={Boolean(formErrors.imagenUrl)}
+                  aria-describedby={formErrors.imagenUrl ? 'asset-imagenUrl-error' : undefined}
+                    placeholder="https://..."
+                    value={formData.imagenUrl ?? ''}
+                    onChange={handleInputChange}
+                    onBlur={handleFieldBlur}
+                    className={fieldClass(Boolean(formErrors.imagenUrl))}
+                  />
+                  {formErrors.imagenUrl && <p id="asset-imagenUrl-error" role="alert" className="mt-1 text-xs text-red-600">{formErrors.imagenUrl}</p>}
+                </div>
+              </div>
+            </section>
+                </fieldset>
+                </div>
+                <footer className="inventory-editor-footer">
+                  <p><span>*</span> Campos obligatorios</p>
+                  <div className="inventory-editor-buttons">
+                    <button type="button" className="inventory-editor-cancel" onClick={resetForm} disabled={loading}>Cancelar</button>
+                    <button type="submit" className="inventory-editor-save" disabled={loading}>
+                      <Icon name={loading ? 'loader' : 'save'} />
+                      {loading ? 'Guardando...' : editingId ? 'Guardar cambios' : 'Registrar bien'}
+                    </button>
+                  </div>
+                </footer>
+              </form>
             </section>
           </div>
         </ModalPortal>
       )}
 
       {/* Tabla */}
-      <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-        <div className="flex flex-wrap items-center gap-3">
+      <div className="inventory-toolbar">
+        <div className="inventory-toolbar-row">
           <label htmlFor="filter-search" className="sr-only">Buscar bienes</label>
-          <div className="min-w-[240px] flex-1">
+          <div className="inventory-search">
+            <Icon name="search" />
             <input
               id="filter-search"
               type="search"
               value={filtroBusqueda}
               onChange={(event) => setFiltroBusqueda(event.target.value)}
               placeholder="Buscar por código, serie, equipo, marca..."
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="inventory-search-input"
             />
           </div>
+          <div className="inventory-type-filter">
           <Select
             aria-label="Filtrar por tipo"
             value={filtroTipo}
@@ -909,27 +926,25 @@ export default function InventarioList({ bienes, onRefresh, canCreate, canEdit, 
               setFiltroTipo(event.target.value);
               setFiltrosTecnicos({});
             }}
-            className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="inventory-type-select"
           >
             {TIPOS_DISPONIBLES.map(({ value, label }) => (
-              <option key={value || 'all'} value={value}>{label}</option>
+              <option key={value || 'all'} value={value}>{value ? label : 'Todos los tipos'}</option>
             ))}
           </Select>
+          </div>
           <button
             type="button"
             onClick={() => setFiltrosAvanzados((visible) => !visible)}
-            className={`inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-semibold transition ${filtrosAvanzados ? 'border-blue-300 bg-blue-50 text-blue-700' : 'border-slate-300 text-slate-700 hover:bg-slate-50'}`}
+            aria-expanded={filtrosAvanzados}
+            aria-controls="inventory-advanced-filters"
+            className={`inventory-filter-toggle${filtrosAvanzados ? ' is-open' : ''}`}
           >
             <Icon name="filter" /> Filtros avanzados
           </button>
-          {hayFiltrosTotales && (
-            <button type="button" onClick={limpiarFiltros} className="text-sm font-semibold text-red-600 hover:underline">
-              Limpiar filtros
-            </button>
-          )}
         </div>
         {filtrosAvanzados && (
-          <div className="mt-4 grid grid-cols-1 gap-3 border-t border-slate-100 pt-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div id="inventory-advanced-filters" className="mt-4 grid grid-cols-1 gap-3 border-t border-slate-100 pt-4 sm:grid-cols-2 lg:grid-cols-4">
             <input aria-label="Filtrar por código patrimonial" value={filtroCodigo} onChange={(event) => setFiltroCodigo(event.target.value)} placeholder="Código patrimonial" className="rounded-lg border border-slate-300 px-3 py-2 text-sm" />
             <input aria-label="Filtrar por número de serie" value={filtroSerie} onChange={(event) => setFiltroSerie(event.target.value)} placeholder="Número de serie" className="rounded-lg border border-slate-300 px-3 py-2 text-sm" />
             <input aria-label="Filtrar por marca" value={filtroMarca} onChange={(event) => setFiltroMarca(event.target.value)} placeholder="Marca" className="rounded-lg border border-slate-300 px-3 py-2 text-sm" />
@@ -1005,113 +1020,30 @@ export default function InventarioList({ bienes, onRefresh, canCreate, canEdit, 
             )}
           </div>
         )}
-        <p className="mt-3 text-xs text-slate-500">
-          Mostrando {bienesFiltrados.length} de {bienes.length} bienes
-        </p>
-      </div>
-      <div className="bg-white rounded-xl shadow-md border border-slate-200 overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gradient-to-r from-slate-900 to-slate-800 text-white">
-              <tr>
-                <th className="px-6 py-4 text-left font-semibold">Código patrimonial</th>
-                <th className="px-6 py-4 text-left font-semibold">Equipo</th>
-                <th className="px-6 py-4 text-left font-semibold">Tipo</th>
-                <th className="px-6 py-4 text-left font-semibold">Marca/Modelo</th>
-                <th className="px-6 py-4 text-right font-semibold">Costo</th>
-                <th className="px-6 py-4 text-left font-semibold">Asignado a</th>
-                <th className="px-6 py-4 text-center font-semibold">Estado</th>
-                <th className="px-6 py-4 text-center font-semibold">Acciones</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-200">
-              {bienesFiltrados && bienesFiltrados.length > 0 ? (
-                bienesFiltrados.map(bien => (
-                  <tr key={bien.id} className="hover:bg-slate-50 transition">
-                    <td className="px-6 py-4 font-semibold text-slate-900">
-                      {bien.codigo_patrimonial || <span className="font-normal text-slate-400">Sin código</span>}
-                    </td>
-                    <td className="px-6 py-4 font-medium text-slate-900">{bien.nombre}</td>
-                    <td className="px-6 py-4 text-slate-600">
-                      <span className="inline-block px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-semibold">
-                        {bien.tipo}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-slate-600 text-sm">
-                      {bien.marca || '-'} {bien.modelo ? `/ ${bien.modelo}` : ''}
-                    </td>
-                    <td className="px-6 py-4 text-right font-semibold text-slate-900">
-                      S/ {Number(bien.costo || 0).toFixed(2)}
-                    </td>
-                    <td className="px-6 py-4 text-slate-600">
-                      {bien.usuario_asignado || <span className="text-slate-400">Sin asignar</span>}
-                    </td>
-                    <td className="px-6 py-4 text-center">
-                      <span className={`inline-block px-3 py-1 rounded-full text-xs font-bold ${
-                        bien.estado === 'activo'
-                          ? 'bg-green-100 text-green-700'
-                          : 'bg-red-100 text-red-700'
-                      }`}>
-                        <span className="inline-flex items-center gap-1">
-                          <Icon name={bien.estado === 'activo' ? 'check' : 'inactive'} />
-                          {bien.estado === 'activo' ? 'Activo' : 'Inactivo'}
-                        </span>
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-center">
-                      <div className="flex flex-wrap gap-2 justify-center">
-                        <button
-                          type="button"
-                          onClick={() => setSpecsBien(bien)}
-                          className="inline-flex items-center gap-1 rounded px-3 py-1 text-sm font-semibold text-indigo-600 transition hover:bg-indigo-50 hover:text-indigo-800"
-                        >
-                          <Icon name="eye" /> Ver Especificaciones
-                        </button>
-                        {canEdit && (['baja', 'dado_de_baja'].includes(String(bien.estado).toLowerCase()) ? (
-                          <span className="rounded bg-amber-50 px-2 py-1 text-xs font-medium text-amber-800" title="Bien dado de baja - Ficha bloqueada">
-                            Ficha bloqueada
-                          </span>
-                        ) : (
-                          <button
-                            onClick={() => handleEdit(bien)}
-                            className="text-blue-600 hover:text-blue-800 hover:bg-blue-50 px-3 py-1 rounded transition font-semibold text-sm"
-                            disabled={loading}
-                          >
-                            <span className="inline-flex items-center gap-1"><Icon name="edit" /> Actualizar Ficha Técnica</span>
-                          </button>
-                        ))}
-                        <button
-                          onClick={() => handleShowHistory(bien)}
-                          className="text-slate-600 hover:text-slate-900 hover:bg-slate-100 px-3 py-1 rounded transition font-semibold text-sm"
-                          disabled={historyLoading}
-                        >
-                          <span className="inline-flex items-center gap-1"><Icon name="clock" /> Historial</span>
-                        </button>
-                        {canDelete && (
-                          <button
-                            onClick={() => handleDelete(bien.id)}
-                            className="text-red-600 hover:text-red-800 hover:bg-red-50 px-3 py-1 rounded transition font-semibold text-sm"
-                            disabled={loading}
-                          >
-                            <span className="inline-flex items-center gap-1"><Icon name="trash" /> Eliminar</span>
-                          </button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan="8" className="px-6 py-8 text-center text-slate-500">
-                    <Icon name="inbox" className="mx-auto h-8 w-8 text-slate-400" />
-                    <p className="mt-2">{filtroTipo ? 'No hay bienes de este tipo' : 'No hay bienes registrados'}</p>
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+        <div role="status" aria-live="polite" className={hayFiltrosTotales || updatingFilters ? 'inventory-filter-summary' : 'sr-only'}>
+          <span>{updatingFilters ? 'Actualizando filtros…' : hayFiltrosTotales ? `${bienesFiltrados.length.toLocaleString('es-PE')} resultados de ${bienes.length.toLocaleString('es-PE')} bienes` : ''}</span>
+          {hayFiltrosTotales && <button type="button" onClick={limpiarFiltros}>Limpiar filtros</button>}
         </div>
       </div>
+      <div aria-busy={updatingFilters}>
+        <TablaInventario bienes={page.rows} canEdit={canEdit} canDelete={canDelete}
+          loading={loading} historyLoading={historyLoading} hasFilters={Boolean(hayFiltrosTotales)}
+          onSpecs={setSpecsBien} onEdit={handleEdit} onHistory={handleShowHistory} onDelete={handleDelete} />
+      </div>
+      <nav aria-label="Paginación de inventario" className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-slate-200 bg-white px-4 py-3">
+        <div className="flex flex-wrap items-center gap-3 text-sm text-slate-600">
+          <p aria-live="polite">Mostrando {page.start}–{page.end} de {page.total} bienes</p>
+          <label htmlFor="inventario-page-size" className="sr-only">Filas por página</label>
+          <Select id="inventario-page-size" value={String(pageSize)} onChange={(event) => { setPageSize(Number(event.target.value)); goToPage(1); }} className="rounded-lg border border-slate-300 px-3 py-2 text-sm">
+            <option value="25">25 por página</option><option value="50">50 por página</option><option value="100">100 por página</option>
+          </Select>
+        </div>
+        <div className="flex items-center gap-3 text-sm">
+          <button type="button" onClick={() => goToPage(page.page - 1)} disabled={page.page <= 1 || updatingFilters} className="min-h-10 rounded-lg border border-slate-200 px-3 py-2 font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40">Anterior</button>
+          <span className="text-slate-600">Página {page.page} de {page.totalPages}</span>
+          <button type="button" onClick={() => goToPage(page.page + 1)} disabled={page.page >= page.totalPages || updatingFilters} className="min-h-10 rounded-lg border border-slate-200 px-3 py-2 font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40">Siguiente</button>
+        </div>
+      </nav>
 
       {specsBien && (
         <ModalPortal enabled>

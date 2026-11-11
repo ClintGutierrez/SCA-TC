@@ -1,0 +1,102 @@
+.personal-screen { container: personal / inline-size; display: flex; flex-direction: column; gap: 18px; min-width: 0; width: 100%; }
+.personal-header { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 2px 0 4px; }
+.personal-header h1 { margin: 0; color: #182943; font-size: 24px; font-weight: 650; line-height: 1.3; letter-spacing: -.035em; }
+.personal-counts { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin-top: 7px; color: #64748b; font-size: 12px; line-height: 1.5; }
+.personal-counts > span + span { display: inline-flex; align-items: center; gap: 7px; }
+.personal-counts > span + span::before { width: 4px; height: 4px; border-radius: 50%; background: #aab7c9; content: ''; }
+.personal-counts .personal-count-active { color: #4a8068; }
+.personal-counts .personal-count-active::before { background: #63a989; }
+.personal-create-button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; flex-shrink: 0; min-height: 40px; padding: 10px 17px; border: 1px solid #2563eb; border-radius: 9px; background: #2563eb; color: #fff; font: inherit; font-size: 12px; font-weight: 600; box-shadow: 0 2px 5px rgb(37 99 235 / 14%); }
+.personal-create-button:hover:not(:disabled) { background: #1d4ed8; }
+.personal-create-button.is-secondary { border-color: #dce4ef; background: #fff; color: #60728e; box-shadow: none; }
+.personal-create-button svg { width: 16px; height: 16px; flex-shrink: 0; }
+.personal-read-only { padding: 6px 10px; border: 1px solid #e2e8f0; border-radius: 7px; color: #64748b; font-size: 11px; white-space: nowrap; }
+.personal-directory { min-width: 0; overflow: hidden; border: 1px solid #dfe6ef; border-radius: 14px; background: #fff; }
+.personal-toolbar { padding: 14px; }
+.personal-toolbar-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(160px, 210px) auto; align-items: center; gap: 10px; }
+.personal-search { position: relative; min-width: 0; }
+.personal-search > svg { position: absolute; top: 50%; left: 13px; width: 16px; height: 16px; transform: translateY(-50%); color: #9aabc1; pointer-events: none; }
+.personal-search input { display: block; width: 100%; min-width: 0; min-height: 40px; padding: 9px 12px 9px 38px; border: 1px solid #dce4ef; border-radius: 8px; background: #fff; color: #334155; font: inherit; font-size: 12px; line-height: 1.5; }
+.personal-search input::placeholder { color: #96a4b9; }
+.personal-status-filter { min-width: 0; }
+.personal-status-select, .personal-refresh { width: 100%; min-height: 40px; padding: 9px 12px; border: 1px solid #dce4ef; border-radius: 8px; background: #fff; color: #526279; font: inherit; font-size: 12px; line-height: 1.5; }
+.personal-refresh { display: inline-flex; align-items: center; justify-content: center; gap: 8px; font-weight: 600; white-space: nowrap; }
+.personal-refresh svg { width: 14px; height: 14px; }
+.personal-refresh:hover:not(:disabled) { border-color: #b9cef2; background: #f2f7ff; color: #2563eb; }
+.personal-filter-summary { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; margin-top: 12px; padding-top: 12px; border-top: 1px solid #edf1f6; color: #64748b; font-size: 11px; }
+.personal-filter-summary button { padding: 2px 0; border: 0; background: none; color: #416da8; font: inherit; font-weight: 600; }
+.personal-filter-summary button:hover { text-decoration: underline; }
+.personal-desktop { overflow-x: auto; border-top: 1px solid #e7edf5; }
+.personal-table { width: 100%; min-width: 1080px; table-layout: fixed; border-collapse: collapse; text-align: left; }
+.personal-col-worker { width: 27%; }
+.personal-col-contract { width: 12%; }
+.personal-col-location { width: 23%; }
+.personal-col-manager { width: 14%; }
+.personal-col-status { width: 10%; }
+.personal-col-actions { width: 14%; }
+.personal-table th { padding: 13px 14px; border-bottom: 1px solid #e5ebf3; background: #f5f7fb; color: #697991; font-size: 11px; font-weight: 600; line-height: 1.5; }
+.personal-table td { padding: 18px 14px; border-bottom: 1px solid #edf1f6; color: #526279; font-size: 12px; line-height: 1.5; vertical-align: middle; overflow-wrap: anywhere; }
+.personal-table tr:last-child td { border-bottom: 0; }
+.personal-table tbody tr:hover { background: #f9fbff; }
+.personal-table th:last-child { text-align: right; }
+.personal-worker { display: flex; align-items: flex-start; gap: 11px; min-width: 0; }
+.personal-avatar { display: flex; align-items: center; justify-content: center; flex: 0 0 34px; width: 34px; height: 34px; border: 1px solid #e3ebfa; border-radius: 10px; background: #f0f5ff; color: #5a7bb2; font-size: 10px; font-weight: 600; text-transform: uppercase; }
+.personal-worker-copy { min-width: 0; }
+.personal-worker-copy strong { display: block; color: #23334b; font-size: 13px; font-weight: 600; line-height: 1.5; overflow-wrap: anywhere; }
+.personal-worker-meta { margin: 4px 0 0; color: #64748b; font-size: 11px; line-height: 1.6; }
+.personal-contact { display: block; margin: 4px 0 0; color: #607895; font-size: 11px; line-height: 1.6; overflow-wrap: anywhere; }
+.personal-contract { display: flex; flex-direction: column; align-items: flex-start; gap: 7px; }
+.personal-regime { display: inline-block; color: #526681; font-size: 12px; font-weight: 600; line-height: 1.5; }
+.personal-contract > span:last-child, .personal-card-contract > span:last-child { padding: 3px 8px; border-radius: 6px; font-size: 10px; font-weight: 500; white-space: nowrap; }
+.personal-cell-title { margin: 0; color: #435671; font-size: 12px; font-weight: 600; line-height: 1.6; }
+.personal-cell-secondary { display: block; margin: 4px 0 0; color: #64748b; font-size: 11px; line-height: 1.65; }
+.personal-manager { margin: 0; color: #60728e; font-size: 12px; line-height: 1.6; }
+.personal-missing { margin: 0; color: #74839a; font-size: 11px; }
+.personal-worker-status { display: inline-flex; align-items: center; gap: 6px; padding: 4px 8px; border-radius: 6px; background: #f0f3f7; color: #7b899d; font-size: 11px; font-weight: 500; line-height: 1.5; white-space: nowrap; }
+.personal-worker-status::before { width: 5px; height: 5px; flex-shrink: 0; border-radius: 50%; background: currentColor; content: ''; }
+.personal-worker-status.is-active { background: #edf7f2; color: #34745a; }
+.personal-row-actions { display: flex; align-items: center; justify-content: flex-end; gap: 6px; white-space: nowrap; }
+.personal-link-button { display: inline-flex; align-items: center; justify-content: center; gap: 5px; min-height: 32px; padding: 6px 9px; border: 1px solid #dfe7f3; border-radius: 7px; background: #fff; color: #41648f; font: inherit; font-size: 11px; font-weight: 600; }
+.personal-link-button:hover:not(:disabled) { border-color: #b9cdec; background: #f1f6fe; color: #1d4ed8; }
+.personal-link-button svg { width: 13px; height: 13px; }
+.personal-menu-trigger { display: flex; align-items: center; justify-content: center; flex: 0 0 30px; width: 30px; height: 32px; padding: 0; border: 1px solid transparent; border-radius: 7px; background: transparent; color: #8494ab; }
+.personal-menu-trigger svg { width: 18px; height: 18px; }
+.personal-menu-trigger:hover, .personal-menu-trigger[aria-expanded="true"] { border-color: #dfe6ef; background: #f3f6fa; color: #41648f; }
+.personal-row-menu { position: fixed; z-index: 70; max-height: calc(100dvh - 24px); overflow-y: auto; padding: 5px; border: 1px solid #dce4f0; border-radius: 10px; background: #fff; box-shadow: 0 8px 26px rgb(15 23 42 / 12%); }
+.personal-row-menu button { display: flex; align-items: center; gap: 9px; width: 100%; min-height: 38px; padding: 8px 10px; border: 0; border-radius: 6px; background: transparent; color: #526279; text-align: left; font: inherit; font-size: 12px; }
+.personal-row-menu button:hover:not(:disabled) { background: #f1f5fb; color: #1d4ed8; }
+.personal-row-menu button.is-danger { margin-top: 4px; border-top: 1px solid #edf1f6; border-radius: 0 0 6px 6px; color: #b34b54; }
+.personal-row-menu button.is-danger:hover:not(:disabled) { background: #fff1f2; color: #be123c; }
+.personal-row-menu svg { width: 15px; height: 15px; flex-shrink: 0; }
+.personal-cards { display: none; }
+.personal-card { min-width: 0; padding: 18px; border: 1px solid #e3e9f2; border-radius: 12px; background: #fff; }
+.personal-card-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.personal-card-heading > .personal-worker-status { flex-shrink: 0; }
+.personal-card-role { margin: 13px 0 0; color: #526681; font-size: 12px; font-weight: 500; }
+.personal-card-details { display: flex; flex-direction: column; gap: 14px; margin-top: 18px; }
+.personal-card-details dt { color: #94a0b3; font-size: 10px; }
+.personal-card-details dd { margin: 5px 0 0; color: #526681; font-size: 12px; line-height: 1.6; overflow-wrap: anywhere; }
+.personal-card-contract { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.personal-card-footer { margin-top: 18px; padding-top: 14px; border-top: 1px solid #edf1f6; }
+.personal-screen button:disabled, .personal-row-menu button:disabled { cursor: not-allowed; opacity: .55; }
+.personal-create-button:focus-visible, .personal-search input:focus, .personal-status-select:focus-visible, .personal-refresh:focus-visible, .personal-filter-summary button:focus-visible, .personal-row-actions button:focus-visible, .personal-row-menu button:focus-visible { outline: 2px solid #82aaf2; outline-offset: 2px; }
+@container personal (max-width: 1090px) {
+  .personal-desktop { display: none; }
+  .personal-cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; padding: 16px; border-top: 1px solid #e7edf5; background: #f8fafd; }
+}
+@container personal (max-width: 640px) {
+  .personal-header { align-items: flex-start; flex-wrap: wrap; gap: 14px; }
+  .personal-header h1 { font-size: 21px; }
+  .personal-create-button { min-height: 44px; }
+  .personal-toolbar-row { grid-template-columns: minmax(0, 1fr) auto; }
+  .personal-search { grid-column: 1 / -1; }
+  .personal-search input, .personal-status-select, .personal-refresh { min-height: 44px; }
+  .personal-cards { grid-template-columns: minmax(0, 1fr); }
+}
+@container personal (max-width: 420px) {
+  .personal-create-button { width: 100%; }
+  .personal-counts { gap: 8px; font-size: 11px; }
+  .personal-cards { padding: 12px; }
+  .personal-card { padding: 15px; }
+}
+@media (pointer: coarse) { .personal-link-button, .personal-menu-trigger, .personal-row-menu button { min-height: 44px; } }

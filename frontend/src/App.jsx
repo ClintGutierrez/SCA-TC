@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import './App.css';
 import * as api from './services/api';
 import NavBar from './components/NavBar';
@@ -167,10 +167,10 @@ function App() {
     loadData();
   }, [currentUser, permissions.canManageUsers]);
 
-  const fetchBienes = async () => {
+  const fetchBienes = useCallback(async () => {
     const response = await api.getBienes();
     setBienes(response.data);
-  };
+  }, []);
 
   const fetchUsuarios = async () => {
     const response = await api.getUsuarios();
@@ -232,31 +232,22 @@ function App() {
         return <Dashboard currentUser={currentUser} onNavigate={openDashboardModule} onInventoryLoaded={setBienes} />;
       case 'inventario':
         return (
-          <div className="space-y-6">
-            {permissions.canCreateAssets && (
-              mostrarRegistro ? (
-                <RegistrarBien
-                  onSaved={() => { fetchBienes(); setMostrarRegistro(false); }}
-                  onCancel={() => setMostrarRegistro(false)}
-                />
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => setMostrarRegistro(true)}
-                  className="rounded-lg bg-blue-600 px-5 py-3 font-semibold text-white shadow hover:bg-blue-700"
-                >
-                  ➕ Registrar bien informático
-                </button>
-              )
+          <InventarioList
+            bienes={bienes}
+            onRefresh={fetchBienes}
+            canCreate={permissions.canCreateAssets}
+            onCreate={() => setMostrarRegistro(true)}
+            registrationOpen={mostrarRegistro}
+            canEdit={permissions.canEditAssets}
+            canDelete={permissions.canDeleteAssets}
+          >
+            {permissions.canCreateAssets && mostrarRegistro && (
+              <RegistrarBien
+                onSaved={() => { fetchBienes(); setMostrarRegistro(false); }}
+                onCancel={() => setMostrarRegistro(false)}
+              />
             )}
-            <InventarioList
-              bienes={bienes}
-              onRefresh={fetchBienes}
-              canCreate={false}
-              canEdit={permissions.canEditAssets}
-              canDelete={permissions.canDeleteAssets}
-            />
-          </div>
+          </InventarioList>
         );
       case 'mantenimiento':
         return (
@@ -383,8 +374,8 @@ function App() {
         onProfileUpdate={handleProfileUpdate}
         onToggleSidebar={() => setSidebarOpen((open) => !open)}
         onLogout={logout}
-        title={currentMeta.title}
-        description={currentMeta.description}
+        onHome={() => openDashboardModule(role === 'almacen' ? 'almacen_ti' : role === 'auditor' ? 'auditoria' : 'dashboard')}
+        title={currentView === 'dashboard' ? 'Dashboard' : currentMeta.title}
       />
 
       <div className="mx-auto flex max-w-[1800px] gap-6 px-4 pb-6 pt-4 lg:px-6">
@@ -397,28 +388,7 @@ function App() {
         />
 
         <main className="min-w-0 flex-1">
-          {currentView !== 'dashboard' && <div className="mb-6 rounded-[28px] border border-white/70 bg-white/70 px-6 py-5 shadow-[0_20px_60px_rgba(15,23,42,0.08)] backdrop-blur">
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-              <div>
-                <p className="text-sm font-semibold uppercase tracking-[0.28em] text-blue-600">Tribunal Constitucional del Perú</p>
-                <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-900 lg:text-3xl">{currentMeta.title}</h2>
-                <p className="mt-1 max-w-2xl text-sm text-slate-500">{currentMeta.description}</p>
-              </div>
-              <div className="flex flex-wrap items-center gap-3 text-sm text-slate-500">
-                <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-emerald-700">
-                  {loading ? 'Sincronizando datos' : 'Sistema operativo'}
-                </div>
-                <div className="rounded-2xl border border-slate-200 bg-white px-4 py-2 font-medium text-slate-700 shadow-sm">
-                  {new Date().toLocaleDateString('es-PE', { day: '2-digit', month: 'short', year: 'numeric' })}
-                </div>
-                <div className="rounded-2xl border border-slate-200 bg-white px-4 py-2 font-medium text-slate-700 shadow-sm">
-                  {currentUser.nombre} · {currentUser.rol}
-                </div>
-              </div>
-            </div>
-          </div>}
-
-          <div className="min-h-[calc(100vh-210px)] rounded-[32px] border border-white/70 bg-white/60 p-4 shadow-[0_25px_80px_rgba(15,23,42,0.08)] backdrop-blur lg:p-6">
+          <div className={`min-h-[calc(100vh-210px)] rounded-[32px] border p-4 lg:p-6 ${currentView === 'inventario' ? 'border-slate-200 bg-slate-50 shadow-sm' : 'border-white/70 bg-white/60 shadow-[0_25px_80px_rgba(15,23,42,0.08)] backdrop-blur'}`}>
             {loading ? (
               <div className="flex min-h-[420px] items-center justify-center">
                 <div className="rounded-3xl border border-slate-200 bg-white px-8 py-10 text-center shadow-lg">

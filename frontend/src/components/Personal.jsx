@@ -1,7 +1,9 @@
 import Select from './Select';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import * as api from '../services/api';
 import VinculoLaboral, { EstadoVinculo } from './VinculoLaboral';
+import './Personal.css';
 
 const emptyForm = {
   nombre: '', apellido: '', dni: '', correo_institucional: '', numero_celular: '',
@@ -32,8 +34,81 @@ function Icon({ name, className = 'h-5 w-5' }) {
     down: 'm6 9 6 6 6-6',
     refresh: 'M20 7v5h-5M4 17v-5h5M6 7a7 7 0 0 1 12-1l2 3M4 15l2 3a7 7 0 0 0 12-1',
     lock: 'M7 11V7a5 5 0 0 1 10 0v4M5 11h14v10H5Z',
+    more: 'M5 12h.01M12 12h.01M19 12h.01',
+    edit: 'M12 20h9M16.5 3.5a2.12 2.12 0 0 1 3 3L8 18l-4 1 1-4Z',
+    inactive: 'M5 12h14M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0',
   };
-  return <svg className={cx('shrink-0', className)} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={paths[name] || paths.person} /></svg>;
+  return <svg width="20" height="20" className={cx('shrink-0', className)} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={paths[name] || paths.person} /></svg>;
+}
+
+const locationSummary = (person) => {
+  const seen = new Set([normalize(person.area)].filter(Boolean));
+  return [person.sede, person.oficina, person.piso].filter((part) => {
+    const key = normalize(part);
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  }).join(' · ');
+};
+
+function PersonalActions({ person, saving, canEdit, onVinculo, onEdit, onDisable }) {
+  const [open, setOpen] = useState(false);
+  const [position, setPosition] = useState(null);
+  const trigger = useRef(null);
+  const menu = useRef(null);
+  const menuId = useId();
+  const close = (restoreFocus = false) => {
+    setOpen(false); setPosition(null);
+    if (restoreFocus) trigger.current?.focus({ preventScroll: true });
+  };
+
+  useEffect(() => {
+    if (!open) return;
+    const rect = trigger.current.getBoundingClientRect();
+    const height = menu.current.getBoundingClientRect().height;
+    const width = Math.min(200, window.innerWidth - 24);
+    const above = window.innerHeight - rect.bottom < height + 12 && rect.top > height + 12;
+    setPosition({ width, left: Math.max(12, Math.min(rect.right - width, window.innerWidth - width - 12)),
+      top: Math.max(12, Math.min(above ? rect.top - height - 6 : rect.bottom + 6, window.innerHeight - height - 12)) });
+    const frame = requestAnimationFrame(() => menu.current?.querySelector('button:not(:disabled)')?.focus());
+    const outside = (event) => { if (!trigger.current?.contains(event.target) && !menu.current?.contains(event.target)) close(); };
+    const moved = (event) => { if (!menu.current?.contains(event.target)) close(); };
+    document.addEventListener('pointerdown', outside);
+    window.addEventListener('scroll', moved, true);
+    window.addEventListener('resize', moved);
+    return () => {
+      cancelAnimationFrame(frame);
+      document.removeEventListener('pointerdown', outside);
+      window.removeEventListener('scroll', moved, true);
+      window.removeEventListener('resize', moved);
+    };
+  }, [open]);
+
+  const keydown = (event) => {
+    if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); close(true); return; }
+    if (event.key === 'Tab') { close(true); return; }
+    if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) return;
+    event.preventDefault();
+    const buttons = [...menu.current.querySelectorAll('button:not(:disabled)')];
+    if (!buttons.length) return;
+    const current = buttons.indexOf(document.activeElement);
+    const next = event.key === 'Home' ? 0 : event.key === 'End' ? buttons.length - 1 : (current + (event.key === 'ArrowDown' ? 1 : -1) + buttons.length) % buttons.length;
+    buttons[next]?.focus();
+  };
+  const run = (callback) => { close(true); callback(person); };
+
+  return <div className="personal-row-actions">
+    <button type="button" disabled={saving} onClick={() => onVinculo(person.id)} className="personal-link-button" title="Consultar y gestionar vínculo laboral" aria-label={'Vínculo laboral de ' + fullName(person)}>
+      <Icon name="briefcase" />Vínculo</button>
+    {canEdit && <button ref={trigger} type="button" disabled={saving} className="personal-menu-trigger" aria-label={'Más acciones para ' + fullName(person)}
+      aria-haspopup="menu" aria-expanded={open} aria-controls={open ? menuId : undefined}
+      onClick={() => open ? close() : setOpen(true)} onKeyDown={(event) => { if (event.key === 'ArrowDown') { event.preventDefault(); setOpen(true); } }}><Icon name="more" /></button>}
+    {open && createPortal(<div ref={menu} id={menuId} role="menu" aria-label={'Acciones de ' + fullName(person)} className="personal-row-menu" onKeyDown={keydown}
+      style={position || { width: 200, top: 0, left: 0, visibility: 'hidden' }}>
+      <button type="button" role="menuitem" disabled={saving} onClick={() => run(onEdit)}><Icon name="edit" />Editar datos</button>
+      {person.estado === 'activo' && <button type="button" role="menuitem" disabled={saving} className="is-danger" onClick={() => run(onDisable)}><Icon name="inactive" />Deshabilitar</button>}
+    </div>, document.body)}
+  </div>;
 }
 
 function Field({ name, label, required, error, hint, className, children }) {
@@ -184,36 +259,30 @@ export default function Personal({ personal: initialPersonal = [], onRefresh, cu
         required={required} aria-invalid={Boolean(fieldErrors[name])} aria-describedby={fieldErrors[name] || hint ? 'personal-' + name + '-help' : undefined}
         placeholder={placeholder} maxLength={maxLength} className={inputClass(fieldErrors[name])} {...props} />
     </Field>;
-  const actions = (item) => <div className="flex flex-wrap items-center gap-2">
-    <button type="button" disabled={saving} onClick={() => setVinculoPersonalId(item.id)} className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-700 hover:bg-blue-100 focus:outline-none focus:ring-4 focus:ring-blue-100 disabled:opacity-50">
-      <Icon name="briefcase" className="h-3.5 w-3.5" />Vínculo laboral</button>
-    {canEdit && <details className="relative">
-      <summary aria-label={'Más acciones para ' + fullName(item)} aria-disabled={saving} onClick={(event) => { if (saving) event.preventDefault(); }} className="flex h-8 w-8 cursor-pointer list-none items-center justify-center rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 focus:outline-none focus:ring-4 focus:ring-blue-100 [&::-webkit-details-marker]:hidden">
-        <span aria-hidden="true" className="text-lg leading-none">⋯</span>
-      </summary>
-      <div className="mt-2 flex min-w-32 flex-col gap-1 rounded-xl border border-slate-200 bg-white p-1.5 text-xs">
-        <button type="button" disabled={saving} onClick={(event) => { event.currentTarget.closest('details').open = false; edit(item); }} className="rounded-lg px-3 py-2 text-left font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50">Editar datos</button>
-        {item.estado === 'activo' && <button type="button" disabled={saving} onClick={(event) => { event.currentTarget.closest('details').open = false; disable(item); }} className="rounded-lg px-3 py-2 text-left font-semibold text-rose-600 hover:bg-rose-50 disabled:opacity-50">Deshabilitar</button>}
-      </div>
-    </details>}
-  </div>;
-  const workerStatus = (item) => <span className={cx('inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-semibold',
-    item.estado === 'activo' ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600')}><span className={cx('h-1.5 w-1.5 rounded-full', item.estado === 'activo' ? 'bg-emerald-500' : 'bg-slate-400')} />{item.estado === 'activo' ? 'Activo' : 'Inactivo'}</span>;
+  const activeCount = personal.filter((person) => person.estado === 'activo').length;
+  const hasFilters = Boolean(search.trim() || statusFilter);
+  const clearFilters = () => { setSearch(''); setStatusFilter(''); };
+  const actions = (person) => <PersonalActions person={person} saving={saving} canEdit={canEdit}
+    onVinculo={setVinculoPersonalId} onEdit={edit} onDisable={disable} />;
+  const workerStatus = (person) => <span className={cx('personal-worker-status', person.estado === 'activo' && 'is-active')}>
+    {person.estado === 'activo' ? 'Activo' : 'Inactivo'}</span>;
 
   if (vinculoPersonalId) return <VinculoLaboral personalId={vinculoPersonalId} currentUser={currentUser}
     onClose={() => { setVinculoPersonalId(null); void loadPersonal(); }} onSaved={() => { void loadPersonal(); void notifyParent(); }} />;
 
-  return <div data-personal-screen className="space-y-5">
-    <header className="flex flex-col justify-between gap-5 rounded-2xl border border-slate-200 bg-white p-5 sm:p-6 lg:flex-row lg:items-center">
-      <div className="flex items-start gap-4">
-        <span className="hidden h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-blue-600 text-white sm:flex"><Icon name="person" className="h-6 w-6" /></span>
-        <div><p className="text-xs font-semibold uppercase tracking-[0.2em] text-blue-600">Directorio institucional</p>
-          <h2 className="mt-1.5 text-xl font-semibold tracking-tight text-slate-950 sm:text-2xl">Personal de la institución</h2>
-          <p className="mt-2 text-sm leading-6 text-slate-500">Administra los datos de los trabajadores y sus vínculos laborales.</p>
+  return <div data-personal-screen className="personal-screen">
+    <header className="personal-header">
+      <div>
+        <h1 id="personal-directory-title">Personal de la institución</h1>
+        <div className="personal-counts">
+          <span>{personal.length.toLocaleString('es-PE')} {personal.length === 1 ? 'trabajador registrado' : 'trabajadores registrados'}</span>
+          {personal.length > 0 && <><span className="personal-count-active">{activeCount} {activeCount === 1 ? 'activo' : 'activos'}</span>
+            {personal.length > activeCount && <span>{personal.length - activeCount} {personal.length - activeCount === 1 ? 'inactivo' : 'inactivos'}</span>}</>}
         </div>
       </div>
-      {canEdit && <button type="button" disabled={saving} onClick={showForm ? resetForm : startNew} className={showForm ? secondaryButton : primaryButton}>
-        <Icon name={showForm ? 'close' : 'plus'} className="h-4 w-4" />{showForm ? 'Cerrar formulario' : 'Registrar personal'}</button>}
+      {canEdit ? <button type="button" disabled={saving} onClick={showForm ? resetForm : startNew} className={cx('personal-create-button', showForm && 'is-secondary')}>
+        <Icon name={showForm ? 'close' : 'plus'} />{showForm ? 'Cerrar formulario' : 'Registrar personal'}</button>
+        : <span className="personal-read-only">Solo consulta</span>}
     </header>
 
     {success && <div role="status" className="flex flex-col justify-between gap-4 rounded-2xl border border-emerald-200 bg-emerald-50 p-5 sm:flex-row sm:items-center">
@@ -269,19 +338,19 @@ export default function Personal({ personal: initialPersonal = [], onRefresh, cu
       </div>
     </form>}
 
-    <section className="rounded-2xl border border-slate-200 bg-white" aria-labelledby="personal-directory-title">
-      <div className="flex flex-col justify-between gap-4 p-5 sm:p-6">
-        <div className="flex flex-wrap items-center justify-between gap-3"><div><h3 id="personal-directory-title" className="text-lg font-semibold text-slate-950">Personal registrado</h3>
-          <p className="mt-1 text-sm text-slate-500">{personal.length ? filteredPersonal.length + ' de ' + personal.length + ' trabajadores' : 'Tu directorio institucional en un solo lugar.'}</p></div>
-          {personal.length > 0 && <span className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-600">{personal.filter((p) => p.estado === 'activo').length} activos</span>}
-        </div>
-        {personal.length > 0 && <div className="flex flex-col gap-3 sm:flex-row">
-          <div className="relative min-w-0 flex-1"><span className="pointer-events-none absolute inset-y-0 left-3.5 flex items-center text-slate-400"><Icon name="search" className="h-4 w-4" /></span>
-            <input aria-label="Buscar personal" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar por nombre, DNI, área o sede" className={cx(inputClass(), 'mt-0 pl-10 pr-10')} />
-            {search && <button type="button" aria-label="Limpiar búsqueda" onClick={() => setSearch('')} className="absolute inset-y-0 right-2 flex w-8 items-center justify-center text-slate-400 hover:text-slate-700"><Icon name="close" className="h-4 w-4" /></button>}
+    <section className="personal-directory" aria-labelledby="personal-directory-title">
+      <div className="personal-toolbar">
+        <div className="personal-toolbar-row">
+          <div className="personal-search"><Icon name="search" />
+            <input type="search" aria-label="Buscar personal" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar por nombre, DNI, área o sede" />
           </div>
-          <Select aria-label="Filtrar por estado del trabajador" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} className={cx(inputClass(), 'mt-0 sm:w-52')}><option value="">Todos los estados</option><option value="activo">Trabajadores activos</option><option value="inactivo">Trabajadores inactivos</option></Select>
-        </div>}
+          <div className="personal-status-filter"><Select aria-label="Filtrar por estado del trabajador" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} className="personal-status-select"><option value="">Todos los estados</option><option value="activo">Trabajadores activos</option><option value="inactivo">Trabajadores inactivos</option></Select></div>
+          <button type="button" className="personal-refresh" onClick={loadPersonal} disabled={loading || saving}><Icon name="refresh" />Actualizar</button>
+        </div>
+        <div role="status" aria-live="polite" className={hasFilters ? 'personal-filter-summary' : 'sr-only'}>
+          <span>{hasFilters ? `${filteredPersonal.length.toLocaleString('es-PE')} resultados de ${personal.length.toLocaleString('es-PE')} trabajadores` : ''}</span>
+          {hasFilters && <button type="button" onClick={clearFilters}>Limpiar filtros</button>}
+        </div>
       </div>
       {loadError && <div role="alert" className="mx-5 mb-5 rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700 sm:mx-6">{loadError}<button type="button" onClick={loadPersonal} className="ml-3 inline-flex items-center gap-1.5 font-semibold underline"><Icon name="refresh" className="h-3 w-3" />Recargar</button></div>}
       {loading ? <div role="status" className="flex items-center justify-center gap-3 border-t border-slate-100 py-12 text-sm text-slate-500"><span className="h-5 w-5 animate-spin rounded-full border-2 border-slate-200 border-t-blue-600" />Cargando directorio...</div>
@@ -297,23 +366,27 @@ export default function Personal({ personal: initialPersonal = [], onRefresh, cu
             <p className="mt-2 text-sm text-slate-500">Prueba con otro nombre o DNI, o ajusta el estado del trabajador.</p>
             <button type="button" onClick={() => { setSearch(''); setStatusFilter(''); }} className="mt-4 text-sm font-semibold text-blue-700">Limpiar filtros</button>
           </div> : <>
-            <div className="hidden overflow-x-auto border-t border-slate-100 xl:block"><table className="w-full min-w-[940px] text-left text-sm">
-              <thead className="bg-slate-50/80"><tr>{['Trabajador', 'Régimen y vínculo', 'Ubicación', 'Jefe inmediato', 'Estado del trabajador', 'Acciones'].map((title) => <th key={title} className="px-5 py-3.5 text-xs font-semibold text-slate-500">{title}</th>)}</tr></thead>
-              <tbody className="divide-y divide-slate-100">{filteredPersonal.map((p) => <tr key={p.id} className="align-top transition hover:bg-slate-50/60">
-                <td className="px-5 py-5"><div className="flex items-start gap-3"><span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-50 text-xs font-semibold uppercase text-blue-700">{initials(p)}</span><div className="min-w-0"><p className="font-semibold text-slate-900">{fullName(p)}</p><p className="mt-1 break-all text-xs text-slate-500">{p.correo_institucional}</p><p className="mt-1 text-xs text-slate-400">DNI {p.dni}{p.cargo ? ' · ' + p.cargo : ''}</p></div></div></td>
-                <td className="px-5 py-5"><p className="mb-2 font-medium text-slate-700">{p.regimen_laboral}</p><EstadoVinculo vinculo={p.vinculo_laboral} /></td>
-                <td className="px-5 py-5"><p className="font-medium text-slate-700">{p.area || 'Área no registrada'}</p><p className="mt-1 text-xs leading-5 text-slate-500">{[p.sede, p.oficina, p.piso].filter(Boolean).join(' · ') || 'Ubicación no registrada'}</p></td>
-                <td className="px-5 py-5"><p className="text-slate-700">{p.jefe_inmediato_nombre || 'Sin asignar'}</p>{p.correo_jefe && <p className="mt-1 break-all text-xs text-slate-500">{p.correo_jefe}</p>}</td>
-                <td className="px-5 py-5">{workerStatus(p)}</td><td className="px-5 py-5">{actions(p)}</td>
+            <div className="personal-desktop"><table className="personal-table">
+              <caption className="sr-only">Directorio institucional: datos de contacto, ubicación y situación laboral del personal.</caption>
+              <colgroup><col className="personal-col-worker" /><col className="personal-col-contract" /><col className="personal-col-location" /><col className="personal-col-manager" /><col className="personal-col-status" /><col className="personal-col-actions" /></colgroup>
+              <thead><tr>{['Trabajador', 'Régimen y vínculo', 'Área y ubicación', 'Jefe inmediato', 'Estado', 'Acciones'].map((title) => <th key={title} scope="col">{title}</th>)}</tr></thead>
+              <tbody>{filteredPersonal.map((p) => <tr key={p.id}>
+                <td><div className="personal-worker"><span className="personal-avatar" aria-hidden="true">{initials(p)}</span><div className="personal-worker-copy"><strong>{fullName(p)}</strong>
+                  <p className="personal-worker-meta">DNI {p.dni}{p.cargo ? ' · ' + p.cargo : ''}</p><p className="personal-contact">{p.correo_institucional}</p></div></div></td>
+                <td><div className="personal-contract"><span className="personal-regime">{p.regimen_laboral || 'Sin régimen'}</span><EstadoVinculo vinculo={p.vinculo_laboral} /></div></td>
+                <td><p className="personal-cell-title">{p.area || 'Área no registrada'}</p><p className="personal-cell-secondary">{locationSummary(p) || (!p.area ? 'Ubicación no registrada' : '')}</p></td>
+                <td><p className={p.jefe_inmediato_nombre ? 'personal-manager' : 'personal-missing'}>{p.jefe_inmediato_nombre || 'Sin asignar'}</p>{p.correo_jefe && <p className="personal-contact">{p.correo_jefe}</p>}</td>
+                <td>{workerStatus(p)}</td><td>{actions(p)}</td>
               </tr>)}</tbody>
             </table></div>
-            <div className="grid gap-4 border-t border-slate-100 p-5 sm:grid-cols-2 sm:p-6 xl:hidden">{filteredPersonal.map((p) => <article key={p.id} className="min-w-0 rounded-xl border border-slate-200 p-4">
-              <div className="flex items-start justify-between gap-3"><div className="min-w-0"><p className="break-words font-semibold text-slate-900">{fullName(p)}</p><p className="mt-1 text-xs text-slate-500">DNI {p.dni}</p></div>{workerStatus(p)}</div>
-              <p className="mt-3 break-all text-sm text-slate-500">{p.correo_institucional}</p>
-              <dl className="mt-4 space-y-3 text-sm"><div><dt className="text-xs text-slate-400">Régimen y vínculo laboral</dt><dd className="mt-1 flex flex-wrap items-center gap-2"><span className="font-medium text-slate-700">{p.regimen_laboral}</span><EstadoVinculo vinculo={p.vinculo_laboral} /></dd></div>
-                <div><dt className="text-xs text-slate-400">Ubicación</dt><dd className="mt-1 text-slate-600">{[p.area, p.sede, p.oficina, p.piso].filter(Boolean).join(' · ') || 'No registrada'}</dd></div>
-                <div><dt className="text-xs text-slate-400">Jefe inmediato</dt><dd className="mt-1 text-slate-600">{p.jefe_inmediato_nombre || 'Sin asignar'}</dd></div></dl>
-              <div className="mt-4 border-t border-slate-100 pt-4">{actions(p)}</div>
+            <div className="personal-cards">{filteredPersonal.map((p) => <article key={p.id} className="personal-card">
+              <div className="personal-card-heading"><div className="personal-worker"><span className="personal-avatar" aria-hidden="true">{initials(p)}</span><div className="personal-worker-copy"><strong>{fullName(p)}</strong><p className="personal-worker-meta">DNI {p.dni}</p></div></div>{workerStatus(p)}</div>
+              {p.cargo && <p className="personal-card-role">{p.cargo}</p>}
+              <p className="personal-contact">{p.correo_institucional}</p>
+              <dl className="personal-card-details"><div><dt>Régimen y vínculo</dt><dd className="personal-card-contract"><span className="personal-regime">{p.regimen_laboral || 'Sin régimen'}</span><EstadoVinculo vinculo={p.vinculo_laboral} /></dd></div>
+                <div><dt>Área y ubicación</dt><dd>{p.area || 'Área no registrada'}{locationSummary(p) && <span className="personal-cell-secondary">{locationSummary(p)}</span>}</dd></div>
+                <div><dt>Jefe inmediato</dt><dd>{p.jefe_inmediato_nombre || 'Sin asignar'}{p.correo_jefe && <span className="personal-contact">{p.correo_jefe}</span>}</dd></div></dl>
+              <footer className="personal-card-footer">{actions(p)}</footer>
             </article>)}</div>
           </>}
     </section>
