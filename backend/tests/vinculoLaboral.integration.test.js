@@ -15,7 +15,7 @@ import { fechaLima } from '../utils/vinculoLaboral.js';
 dotenv.config();
 
 test('CUS12: períodos, concurrencia, asignaciones y auditoría en PostgreSQL aislado', {
-  skip: process.env.TEST_CUS12_DATABASE !== '1', timeout: 120000,
+  skip: process.env.TEST_CUS12_DATABASE !== '1', timeout: 300000, // Holgura para bases remotas (~200 ms por consulta).
 }, async (t) => {
   const schema = `sca_cus12_test_${crypto.randomBytes(8).toString('hex')}`;
   const options = { host: process.env.DB_HOST, port: Number(process.env.DB_PORT), database: process.env.DB_NAME,

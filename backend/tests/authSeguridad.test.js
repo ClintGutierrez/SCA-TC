@@ -194,3 +194,40 @@ test('usuarios: deshabilitar una cuenta revoca sus sesiones', async () => {
     assert.equal(db.revoked().length, 1);
   }
 });
+
+test('cuentaHabilitada: solo estado activo con acceso habilitado', async () => {
+  const { cuentaHabilitada } = await import('../utils/auth.js');
+  assert.equal(cuentaHabilitada({ estado: 'activo', activo_login: true }), true);
+  for (const user of [{ estado: 'inactivo', activo_login: true }, { estado: 'activo', activo_login: false },
+    { estado: null, activo_login: true }, { estado: 'suspendido', activo_login: true }, { estado: 'activo', activo_login: null },
+    {}, null, undefined]) {
+    assert.equal(cuentaHabilitada(user), false, JSON.stringify(user));
+  }
+});
+
+test('login y refresh aplican la misma regla que el middleware a estados ambiguos', async (t) => {
+  withSecret(t);
+  const { refresh } = await import('../controllers/authController.js');
+  for (const overrides of [{ estado: null }, { estado: 'suspendido' }, { activo_login: null }]) {
+    const user = await baseUser(overrides);
+    const res = response();
+    await login({ body: { email: user.email, password: PASSWORD } }, res, fakeSql(user).sql);
+    assert.equal(res.statusCode, 403, `login ${JSON.stringify(overrides)}`);
+    assert.equal(res.body.token, undefined);
+
+    const revoked = [];
+    const sql = async (parts, ...values) => {
+      const query = parts.join('?');
+      if (query.includes('FROM auth_sessions')) {
+        return [{ id: 1, user_id: 7, expires_at: new Date(Date.now() + 86400000), revoked_at: null, ...user, ...overrides }];
+      }
+      if (query.includes('UPDATE auth_sessions') && query.includes('revoked_at = NOW()')) revoked.push(values);
+      return [];
+    };
+    const refreshed = response();
+    refreshed.clearCookie = () => refreshed;
+    await refresh({ cookies: { [refreshCookieName]: 'token' } }, refreshed, sql);
+    assert.equal(refreshed.statusCode, 401, `refresh ${JSON.stringify(overrides)}`);
+    assert.equal(revoked.length, 1, 'La sesión se revoca');
+  }
+});

@@ -1,4 +1,4 @@
-import { hashPassword, systemRoles } from './auth.js';
+import { cuentaHabilitada, hashPassword, systemRoles } from './auth.js';
 
 export const userError = (status, message, campos) => Object.assign(new Error(message), { status, campos });
 export const MENSAJE_PASSWORD = 'Usa al menos 8 caracteres y un máximo de 72 bytes.';
@@ -6,7 +6,7 @@ export const passwordValida = (password) => typeof password === 'string'
   && password.trim().length >= 8 && Buffer.byteLength(password, 'utf8') <= 72;
 export const emailValido = (email) => typeof email === 'string'
   && email.trim().length <= 255 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
-export const administradorHabilitado = (user) => user.rol === 'administrador' && user.estado !== 'inactivo' && user.activo_login !== false;
+export const administradorHabilitado = (user) => user.rol === 'administrador' && cuentaHabilitada(user);
 
 export async function prepararUsuario(body, current = null) {
   if (!body || typeof body !== 'object' || Array.isArray(body)) throw userError(400, 'Datos de cuenta inválidos');

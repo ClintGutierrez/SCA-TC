@@ -4,6 +4,10 @@ import jwt from 'jsonwebtoken';
 
 export const systemRoles = ['administrador', 'jefatura', 'tecnico', 'auditor', 'almacen'];
 
+// Única regla de acceso para login, refresh, perfil, middleware y administración de usuarios.
+// Falla cerrado: solo estado 'activo' con activo_login verdadero habilita la cuenta.
+export const cuentaHabilitada = (user) => user?.estado === 'activo' && user?.activo_login === true;
+
 const refreshTokenTTLDays = 7;
 
 export const refreshCookieName = 'inventario_refresh_token';

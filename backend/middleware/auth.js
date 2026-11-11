@@ -1,4 +1,4 @@
-import { verifyAccessToken, systemRoles } from '../utils/auth.js';
+import { cuentaHabilitada, verifyAccessToken, systemRoles } from '../utils/auth.js';
 
 // Verifica el JWT y, en cada solicitud, consulta la cuenta en la base de datos.
 // El rol, el correo y el nombre del token se reemplazan por los actuales, de modo que
@@ -25,17 +25,16 @@ export const authenticate = (sql) => async (req, res, next) => {
 
   try {
     const [user] = await sql`
-      SELECT id, nombre, email, rol, es_ti, estado, activo_login
+      SELECT id, nombre, email, rol, estado, activo_login
       FROM usuarios WHERE id = ${userId} LIMIT 1
     `;
     if (!user) {
       return res.status(401).json({ error: 'Sesión no válida' });
     }
-    // Falla cerrado: usuarios.estado no tiene CHECK, así que solo 'activo' autoriza.
-    if (user.estado !== 'activo' || user.activo_login !== true) {
+    if (!cuentaHabilitada(user)) {
       return res.status(403).json({ error: 'La cuenta está deshabilitada' });
     }
-    req.user = { ...payload, sub: userId, rol: user.rol, email: user.email, nombre: user.nombre, es_ti: user.es_ti };
+    req.user = { ...payload, sub: userId, rol: user.rol, email: user.email, nombre: user.nombre };
     return next();
   } catch (error) {
     return next(error);

@@ -1,6 +1,7 @@
 import crypto from 'crypto';
 import {
   comparePassword,
+  cuentaHabilitada,
   createAuthToken,
   createRefreshToken,
   getRefreshCookieOptions,
@@ -80,7 +81,7 @@ export const login = async (req, res, sql) => {
     }
 
     // El estado de la cuenta solo se informa a quien ya demostró conocer la contraseña.
-    if (user.activo_login === false || user.estado === 'inactivo') {
+    if (!cuentaHabilitada(user)) {
       await recordAuthEvent(sql, { user, email: user.email, successful: false, reason: 'acceso_deshabilitado' });
       return res.status(403).json({ error: 'Usuario sin acceso habilitado' });
     }
@@ -141,7 +142,7 @@ export const refresh = async (req, res, sql) => {
     const now = new Date();
     const expiresAt = new Date(session.expires_at);
 
-    if (session.revoked_at || expiresAt <= now || session.estado === 'inactivo' || session.activo_login === false) {
+    if (session.revoked_at || expiresAt <= now || !cuentaHabilitada(session)) {
       await sql`
         UPDATE auth_sessions
         SET revoked_at = NOW()
@@ -254,7 +255,7 @@ export const updateProfile = async (req, res, sql) => {
     const updated = await sql.begin(async (tx) => {
       const [current] = await tx`SELECT * FROM usuarios WHERE id = ${userId} FOR UPDATE`;
       if (!current) throw userError(404, 'Usuario no encontrado');
-      if (current.estado === 'inactivo' || current.activo_login === false) {
+      if (!cuentaHabilitada(current)) {
         throw userError(403, 'Usuario sin acceso habilitado');
       }
 

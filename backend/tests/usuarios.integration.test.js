@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
+import fs from 'node:fs/promises';
 import express from 'express';
 import postgres from 'postgres';
 import dotenv from 'dotenv';
@@ -24,7 +25,10 @@ test('usuarios HTTP y PostgreSQL aislado: altas, roles, acceso, contraseñas y c
     sql = postgres({ ...options, connection: { search_path: schema }, max: 5 });
     await sql.unsafe(`CREATE TABLE usuarios(id SERIAL PRIMARY KEY,nombre TEXT,email TEXT UNIQUE,departamento TEXT,
       rol TEXT,es_ti BOOLEAN DEFAULT FALSE,estado TEXT DEFAULT 'activo',activo_login BOOLEAN DEFAULT TRUE,
-      password_hash TEXT,last_login TIMESTAMP,created_at TIMESTAMP DEFAULT now());`);
+      password_hash TEXT,last_login TIMESTAMP,created_at TIMESTAMP DEFAULT now());
+      CREATE TABLE auth_sessions(id SERIAL PRIMARY KEY,user_id INTEGER NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+      token_hash TEXT NOT NULL UNIQUE,expires_at TIMESTAMP NOT NULL,revoked_at TIMESTAMP,last_used_at TIMESTAMP,
+      created_at TIMESTAMP DEFAULT now());`);
     const admins = await sql`INSERT INTO usuarios(nombre,email,rol,password_hash) VALUES
       ('Administrador uno','admin1@example.test','administrador','hash-inicial'),
       ('Administrador dos','admin2@example.test','administrador','hash-inicial') RETURNING *`;
@@ -49,9 +53,12 @@ test('usuarios HTTP y PostgreSQL aislado: altas, roles, acceso, contraseñas y c
     });
     await t.test('editar, bloquear, desactivar y reactivar conserva o cambia la contraseña expresamente', async () => {
       const [before] = await sql`SELECT password_hash FROM usuarios WHERE id=${created.id}`;
+      await sql`INSERT INTO auth_sessions(user_id,token_hash,expires_at) VALUES (${created.id},'sesion-abierta',now() + interval '7 days')`;
       assert.equal((await request(`/${created.id}`, { method: 'PUT', body: { nombre: 'Nombre editado', activoLogin: false } })).status, 200);
       const [after] = await sql`SELECT * FROM usuarios WHERE id=${created.id}`;
       assert.equal(after.password_hash, before.password_hash); assert.equal(after.activo_login, false); assert.equal(after.estado, 'activo');
+      const [session] = await sql`SELECT revoked_at FROM auth_sessions WHERE token_hash='sesion-abierta'`;
+      assert.ok(session.revoked_at, 'Bloquear el acceso revoca las sesiones abiertas de la cuenta');
       const disabled = await request(`/${created.id}`, { method: 'DELETE' });
       assert.equal(disabled.status, 200); assert.equal(disabled.data.user.estado, 'inactivo');
       const restored = await request(`/${created.id}`, { method: 'PUT', body: { estado: 'activo', activoLogin: true, rol: 'tecnico', password: 'OtraClaveDePrueba!' } });
@@ -76,6 +83,22 @@ test('usuarios HTTP y PostgreSQL aislado: altas, roles, acceso, contraseñas y c
       assert.ok(results.some((result) => [403, 409].includes(result.status)));
       const [count] = await sql`SELECT count(*)::int AS total FROM usuarios WHERE rol='administrador' AND estado='activo' AND activo_login=TRUE`;
       assert.equal(count.total, 1);
+    });
+    await t.test('la migración normaliza estados nulos, es repetible y rechaza estados desconocidos', async () => {
+      // Columnas sin restricciones, como en bases anteriores a la migración.
+      await sql`ALTER TABLE usuarios ALTER COLUMN estado DROP NOT NULL`.catch(() => {});
+      const [legacy] = await sql`INSERT INTO usuarios(nombre,email,rol,estado,activo_login)
+        VALUES ('Cuenta antigua','antigua@example.test','tecnico',NULL,NULL) RETURNING id`;
+      const migration = await fs.readFile(new URL('../migrations/20261110_usuarios_estado.sql', import.meta.url), 'utf8');
+      await sql.begin((tx) => tx.unsafe(migration));
+      await sql.begin((tx) => tx.unsafe(migration));
+      const [row] = await sql`SELECT estado, activo_login FROM usuarios WHERE id=${legacy.id}`;
+      assert.deepEqual({ ...row }, { estado: 'activo', activo_login: true });
+      const [check] = await sql`SELECT convalidated FROM pg_constraint WHERE conname='chk_usuarios_estado'`;
+      assert.equal(check.convalidated, true, 'Sin estados desconocidos la restricción queda validada');
+      await assert.rejects(sql`UPDATE usuarios SET estado='suspendido' WHERE id=${legacy.id}`, { code: '23514' });
+      await assert.rejects(sql`UPDATE usuarios SET estado=NULL WHERE id=${legacy.id}`, { code: '23502' });
+      await assert.rejects(sql`UPDATE usuarios SET activo_login=NULL WHERE id=${legacy.id}`, { code: '23502' });
     });
   } finally {
     if (server) await new Promise((resolve) => server.close(resolve));

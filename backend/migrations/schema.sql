@@ -56,8 +56,8 @@ CREATE TABLE IF NOT EXISTS usuarios (
   rol VARCHAR(50),
   password_hash TEXT,
   last_login TIMESTAMP,
-  activo_login BOOLEAN DEFAULT TRUE,
-  estado VARCHAR(50) DEFAULT 'activo',
+  activo_login BOOLEAN NOT NULL DEFAULT TRUE,
+  estado VARCHAR(50) NOT NULL DEFAULT 'activo' CONSTRAINT chk_usuarios_estado CHECK (estado IN ('activo', 'inactivo')),
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 

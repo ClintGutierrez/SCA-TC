@@ -1,4 +1,4 @@
-import { safeUser } from '../utils/auth.js';
+import { cuentaHabilitada, safeUser } from '../utils/auth.js';
 import { bloquearUsuarios, prepararUsuario, protegerAcceso, revocarSesiones, userError } from '../utils/usuarios.js';
 
 const respondError = (res, error) => {
@@ -65,7 +65,7 @@ export const updateUsuario = async (req, res, sql) => {
         rol=${payload.rol},es_ti=${payload.es_ti},estado=${payload.estado},activo_login=${payload.activo_login},password_hash=${payload.password_hash}
         WHERE id=${id} RETURNING *`;
       // Una contraseña nueva o un acceso retirado invalidan las sesiones abiertas de esa cuenta.
-      const accessRemoved = !payload.activo_login || payload.estado === 'inactivo';
+      const accessRemoved = !cuentaHabilitada(payload);
       if (payload.password_hash !== current.password_hash || accessRemoved) await revocarSesiones(tx, id);
       return user;
     });
