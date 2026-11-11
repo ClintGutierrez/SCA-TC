@@ -102,6 +102,11 @@ export const getConfiguracion = async (req, res, sql) => {
 
 export const saveConfiguracion = async (req, res, sql) => {
   try {
+    const operatorId = Number(req.user?.sub);
+    if (!Number.isSafeInteger(operatorId) || operatorId <= 0) {
+      return res.status(401).json({ error: 'Identidad de sesión inválida' });
+    }
+
     const settings = req.body?.settings;
     const catalogs = req.body?.catalogs;
     if (!settings || typeof settings !== 'object') return res.status(400).json({ error: 'La configuración es inválida' });
@@ -111,7 +116,7 @@ export const saveConfiguracion = async (req, res, sql) => {
         if (!Object.hasOwn(DEFAULT_SETTINGS, clave) || !valor || typeof valor !== 'object') continue;
         await transaction`
           INSERT INTO configuracion_sistema (clave, valor, actualizado_por, updated_at)
-          VALUES (${clave}, ${transaction.json(valor)}, ${req.user.id}, CURRENT_TIMESTAMP)
+          VALUES (${clave}, ${transaction.json(valor)}, ${operatorId}, CURRENT_TIMESTAMP)
           ON CONFLICT (clave) DO UPDATE
           SET valor = EXCLUDED.valor, actualizado_por = EXCLUDED.actualizado_por, updated_at = CURRENT_TIMESTAMP
         `;

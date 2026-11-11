@@ -13,6 +13,11 @@ const validateFile = (file, label, allowedTypes, maxSize) => {
 };
 
 export const createBaja = async (req, res, sql) => {
+  const operatorId = Number(req.user?.sub);
+  if (!Number.isSafeInteger(operatorId) || operatorId <= 0) {
+    return res.status(401).json({ error: 'Identidad de sesión inválida' });
+  }
+
   const frontalError = validateFile(req.files?.fotoFrontal?.[0], 'La foto frontal', ALLOWED_IMAGE_TYPES, MAX_IMAGE_SIZE);
   const lateralError = validateFile(req.files?.fotoLateral?.[0], 'La foto lateral', ALLOWED_IMAGE_TYPES, MAX_IMAGE_SIZE);
   const document = req.files?.documentoSustentatorio?.[0];
@@ -71,7 +76,7 @@ export const createBaja = async (req, res, sql) => {
         )
         VALUES (
           ${bienId}, ${String(req.body.motivo).trim()}, ${document ? paths.document : null},
-          ${paths.frontal}, ${paths.lateral}, ${req.user.id},
+          ${paths.frontal}, ${paths.lateral}, ${operatorId},
           ${String(req.body.observaciones || '').trim() || null}
         )
       `;

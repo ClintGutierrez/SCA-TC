@@ -3,6 +3,7 @@ import {
   createAuthToken,
   createRefreshToken,
   getRefreshCookieOptions,
+  hashPassword,
   hashToken,
   refreshCookieName,
   safeUser,

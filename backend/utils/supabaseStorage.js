@@ -62,6 +62,8 @@ export const removeEvidence = async (paths) => {
 };
 
 export const createEvidenceUrl = async (path, expiresIn = 3600) => {
+  if (path == null || path === '') return null;
+
   const { bucket } = getStorageConfig();
   const response = await storageRequest(`/object/sign/${encodeURIComponent(bucket)}/${encodeObjectPath(path)}`, {
     method: 'POST',

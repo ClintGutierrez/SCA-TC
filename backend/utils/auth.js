@@ -2,37 +2,6 @@ import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
 
-const defaultUsers = [
-  {
-    nombre: 'Administrador General',
-    email: 'admin@tc.pe',
-    departamento: 'Tecnología de la Información',
-    rol: 'administrador',
-    password: 'Admin123!',
-  },
-  {
-    nombre: 'Jefatura TI',
-    email: 'jefatura@tc.pe',
-    departamento: 'Tecnología de la Información',
-    rol: 'jefatura',
-    password: 'Jefe123!',
-  },
-  {
-    nombre: 'Técnico de Soporte',
-    email: 'tecnico@tc.pe',
-    departamento: 'Soporte Técnico',
-    rol: 'tecnico',
-    password: 'Tecnico123!',
-  },
-  {
-    nombre: 'Auditor',
-    email: 'auditor@tc.pe',
-    departamento: 'Auditoría',
-    rol: 'auditor',
-    password: 'Auditor123!',
-  },
-];
-
 export const systemRoles = ['administrador', 'jefatura', 'tecnico', 'auditor', 'almacen'];
 
 const refreshTokenTTLDays = 7;
@@ -108,25 +77,6 @@ export const verifyAccessToken = (token) => {
   }
 
   return payload;
-};
-
-export const seedDefaultUsers = async (sql) => {
-  for (const user of defaultUsers) {
-    const passwordHash = await hashPassword(user.password);
-
-    await sql`
-      INSERT INTO usuarios (nombre, email, departamento, rol, password_hash, activo_login, estado, es_ti)
-      VALUES (${user.nombre}, ${user.email}, ${user.departamento}, ${user.rol}, ${passwordHash}, TRUE, 'activo', ${['tecnico','jefatura'].includes(user.rol)})
-      ON CONFLICT (email)
-      DO UPDATE SET
-        nombre = EXCLUDED.nombre,
-        departamento = EXCLUDED.departamento,
-        rol = EXCLUDED.rol,
-        password_hash = EXCLUDED.password_hash,
-        activo_login = TRUE,
-        estado = 'activo'
-    `;
-  }
 };
 
 export const ensureAuthColumns = async (sql) => {

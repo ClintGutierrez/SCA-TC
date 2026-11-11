@@ -17,7 +17,7 @@ import { createAuditoriaRouter } from './routes/auditoria.js';
 import { createBajasRouter } from './routes/bajas.js';
 import { createAsignacionesRouter } from './routes/asignaciones.js';
 import { createMovimientosRouter } from './routes/movimientos.js';
-import { ensureAuthColumns, seedDefaultUsers } from './utils/auth.js';
+import { ensureAuthColumns } from './utils/auth.js';
 import { openapiSpec } from './docs/openapi.js';
 import { createGestionTIRouter } from './routes/gestionTI.js';
 import { startNotificationWorker } from './utils/notificacionesTI.js';
@@ -56,10 +56,6 @@ const sql = postgres({
 });
 
 await ensureAuthColumns(sql);
-
-if (process.env.NODE_ENV !== 'production' && process.env.SEED_DEFAULT_USERS !== 'false') {
-  await seedDefaultUsers(sql);
-}
 
 console.log('✓ Conectado a PostgreSQL');
 
