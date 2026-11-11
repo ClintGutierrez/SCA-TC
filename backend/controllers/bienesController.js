@@ -1,3 +1,5 @@
+import { responderError } from '../utils/errores.js';
+
 const MAC_REGEX = /^([0-9A-Fa-f]{2}[:-]){5}[0-9A-Fa-f]{2}$/;
 
 const CLASIFICACIONES_ESCANER = ['Regular', 'Alto consumo'];
@@ -44,7 +46,7 @@ export const getBienes = async (req, res, sql) => {
     const bienes = await sql`SELECT * FROM bienes_informaticos ORDER BY created_at DESC`;
     res.json(bienes);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    return responderError(res, error, 'bienes.getBienes');
   }
 };
 
@@ -57,7 +59,7 @@ export const getBienById = async (req, res, sql) => {
     }
     res.json(bien[0]);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    return responderError(res, error, 'bienes.getBienById');
   }
 };
 
@@ -232,7 +234,7 @@ export const updateBien = async (req, res, sql) => {
     res.json({ message: 'Ficha técnica actualizada correctamente.', bien: result.bien });
   } catch (error) {
     if (error.code === '23505') return res.status(409).json({ error: 'Ya existe un bien con ese código patrimonial o número de serie' });
-    res.status(500).json({ error: error.message });
+    return responderError(res, error, 'bienes.updateBien');
   }
 };
 
@@ -246,7 +248,7 @@ export const getHistorialBien = async (req, res, sql) => {
     `;
     res.json(historial);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    return responderError(res, error, 'bienes.getHistorialBien');
   }
 };
 
@@ -262,6 +264,6 @@ export const deleteBien = async (req, res, sql) => {
     }
     res.json({ message: 'Bien eliminado correctamente' });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    return responderError(res, error, 'bienes.deleteBien');
   }
 };

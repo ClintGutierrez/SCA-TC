@@ -10,6 +10,7 @@ import {
   safeUser,
 } from '../utils/auth.js';
 import { MENSAJE_PASSWORD, emailValido, passwordValida, revocarSesiones, userError } from '../utils/usuarios.js';
+import { responderError } from '../utils/errores.js';
 
 const refreshTokenLifetimeDays = 7;
 
@@ -110,7 +111,7 @@ export const login = async (req, res, sql) => {
       user: safeUser(user),
     });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    return responderError(res, error, 'autenticación.login');
   }
 };
 
@@ -171,7 +172,7 @@ export const refresh = async (req, res, sql) => {
       user: safeUser(refreshedUser),
     });
   } catch (error) {
-    return res.status(500).json({ error: error.message });
+    return responderError(res, error, 'autenticación.refresh');
   }
 };
 
@@ -208,7 +209,7 @@ export const logout = async (req, res, sql) => {
     res.clearCookie(refreshCookieName, getRefreshCookieOptions());
     return res.status(204).send();
   } catch (error) {
-    return res.status(500).json({ error: error.message });
+    return responderError(res, error, 'autenticación.logout');
   }
 };
 
@@ -222,7 +223,7 @@ export const me = async (req, res, sql) => {
 
     res.json({ user: safeUser(users[0]) });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    return responderError(res, error, 'autenticación.me');
   }
 };
 

@@ -1,3 +1,5 @@
+import { responderError } from '../utils/errores.js';
+
 export const getReporteInventario = async (req, res, sql) => {
   try {
     const reporte = await sql`
@@ -11,7 +13,7 @@ export const getReporteInventario = async (req, res, sql) => {
     `;
     res.json(reporte[0]);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    return responderError(res, error, 'reportes.getReporteInventario');
   }
 };
 
@@ -34,7 +36,7 @@ export const getReporteDepreciacion = async (req, res, sql) => {
     `;
     res.json(reporte);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    return responderError(res, error, 'reportes.getReporteDepreciacion');
   }
 };
 
@@ -55,7 +57,7 @@ export const getReporteAsignaciones = async (req, res, sql) => {
     `;
     res.json(reporte);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    return responderError(res, error, 'reportes.getReporteAsignaciones');
   }
 };
 
@@ -75,6 +77,6 @@ export const getReporteMantenimiento = async (req, res, sql) => {
     `;
     res.json(reporte);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    return responderError(res, error, 'reportes.getReporteMantenimiento');
   }
 };

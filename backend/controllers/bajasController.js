@@ -1,5 +1,6 @@
 import crypto from 'node:crypto';
 import { createEvidenceUrl, removeEvidence, uploadEvidence } from '../utils/supabaseStorage.js';
+import { responderError } from '../utils/errores.js';
 
 const ALLOWED_IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
 const MAX_IMAGE_SIZE = 8 * 1024 * 1024;
@@ -92,8 +93,7 @@ export const createBaja = async (req, res, sql) => {
     } catch (cleanupError) {
       console.error('No se pudieron limpiar todas las evidencias de baja:', cleanupError);
     }
-    console.error('Error al registrar baja:', error);
-    res.status(500).json({ error: error.message });
+    return responderError(res, error, 'bajas.createBaja');
   }
 };
 
@@ -116,6 +116,6 @@ export const getBajas = async (req, res, sql) => {
     res.json(withUrls);
   } catch (error) {
     console.error('Error al consultar bajas:', error);
-    res.status(500).json({ error: error.message });
+    return responderError(res, error, 'bajas.getBajas');
   }
 };

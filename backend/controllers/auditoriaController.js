@@ -1,3 +1,5 @@
+import { responderError } from '../utils/errores.js';
+
 export const getAuditoria = async (req, res, sql) => {
   try {
     const limit = Math.min(Math.max(Number(req.query.limit) || 100, 1), 500);
@@ -84,6 +86,6 @@ export const getAuditoria = async (req, res, sql) => {
 
     return res.json(logs);
   } catch (error) {
-    return res.status(500).json({ error: error.message });
+    return responderError(res, error, 'auditoría.getAuditoria');
   }
 };

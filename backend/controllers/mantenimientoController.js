@@ -1,9 +1,11 @@
+import { responderError } from '../utils/errores.js';
+
 export const getMantenimiento = async (req, res, sql) => {
   try {
     const mantenimiento = await sql`SELECT * FROM mantenimiento ORDER BY fecha DESC`;
     res.json(mantenimiento);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    return responderError(res, error, 'mantenimiento.getMantenimiento');
   }
 };
 
@@ -13,7 +15,7 @@ export const getMantenimientoPorBien = async (req, res, sql) => {
     const mantenimiento = await sql`SELECT * FROM mantenimiento WHERE bien_id = ${bienId} ORDER BY fecha DESC`;
     res.json(mantenimiento);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    return responderError(res, error, 'mantenimiento.getMantenimientoPorBien');
   }
 };
 
@@ -28,7 +30,7 @@ export const createMantenimiento = async (req, res, sql) => {
     `;
     res.status(201).json(mantenimiento[0]);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    return responderError(res, error, 'mantenimiento.createMantenimiento');
   }
 };
 
@@ -41,6 +43,6 @@ export const deleteMantenimiento = async (req, res, sql) => {
     }
     res.json({ message: 'Registro eliminado correctamente' });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    return responderError(res, error, 'mantenimiento.deleteMantenimiento');
   }
 };
