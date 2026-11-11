@@ -327,7 +327,13 @@ responsable funcional antes de usarlos como valoración contable oficial.
 `ano_base` permanece fijo; `ano_actual` registra únicamente el último año calculado. Cada actualización
 parte del valor inicial, por lo que repetirla o calcular cada año produce el mismo resultado que calcular
 directamente el año final. Se aceptan importes entre cero y 9.999.999.999,99 y tasas entre 0 y 100 %, con
-hasta dos decimales. Omitir la tasa usa 20 %; indicar 0 % conserva expresamente esa tasa.
+hasta dos decimales. Indicar 0 % conserva expresamente esa tasa.
+
+Si no se indica la tasa, se usa la de Configuración > Inventario > Depreciación anual, que por defecto es
+25 % (4 años de vida útil), la tasa máxima que SUNAT admite para equipos de procesamiento de datos. La
+depreciación cuenta por años calendario: el año de compra no se deprecia y el primer tramo se aplica desde
+el año siguiente. La tasa por tipo de bien y el inicio por mes pueden ajustarse si el área contable lo
+requiere.
 
 Antes de usar el backend actualizado sobre una base existente, desde `backend` ejecute:
 

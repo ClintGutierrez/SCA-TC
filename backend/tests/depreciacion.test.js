@@ -9,11 +9,12 @@ const original = { id: 3, bien_id: 7, valor_inicial: '1000.00', porcentaje_anual
   valor_actual: '800.00', ano_base: 2024, ano_actual: 2025 };
 const today = new Date('2026-11-05T12:00:00Z');
 
-function database({ rows = [original], assetExists = true, acquisitionYear = 2024 } = {}) {
+function database({ rows = [original], assetExists = true, acquisitionYear = 2024, config = null } = {}) {
   let records = rows.map((row) => ({ ...row }));
   const writes = [];
   const sql = async (parts, ...values) => {
     const query = parts.join('');
+    if (query.includes('FROM configuracion_sistema')) return config ? [{ valor: config }] : [];
     if (query.includes('FROM bienes_informaticos')) return assetExists ? [{ id: 7, ano_adquisicion: acquisitionYear }] : [];
     if (query.includes('SELECT id FROM depreciacion')) return records.map(({ id }) => ({ id }));
     if (query.includes('SELECT * FROM depreciacion')) return records.map((row) => ({ ...row }));
@@ -97,13 +98,13 @@ test('H05: rechaza bases futuras, ausentes y cronología inválida sin escribir'
   assert.throws(() => calcularDepreciacion(1000, 20, 1.5), { status: 400 });
 });
 
-test('H05: registro conserva el 0 % explícito y usa 20 % solo cuando se omite', async () => {
+test('H05: registro conserva el 0 % explícito y usa 25 % solo cuando se omite', async () => {
   for (const rate of [0, '0', undefined, 100]) {
     const { sql } = database({ rows: [] });
     const res = response();
     await crearDepreciacion({ body: { bienId: 7, valorInicial: '1250.50', porcentajeAnual: rate } }, res, sql, today);
     assert.equal(res.statusCode, 201);
-    const effective = rate === undefined ? 20 : Number(rate);
+    const effective = rate === undefined ? 25 : Number(rate);
     assert.equal(res.body.porcentaje_anual, effective);
     assert.equal(res.body.valor_inicial, 1250.5);
     // Bien adquirido en 2024: en 2026 ya acumula dos años de depreciación.
@@ -114,18 +115,38 @@ test('H05: registro conserva el 0 % explícito y usa 20 % solo cuando se omite',
 });
 
 test('depreciación: el año base es el de adquisición del bien, no el del registro', async () => {
-  const { sql } = database({ rows: [], acquisitionYear: 2022 });
+  const { sql } = database({ rows: [], acquisitionYear: 2024 });
   const res = response();
   await crearDepreciacion({ body: { bienId: 7, valorInicial: 1000 } }, res, sql, today);
   assert.equal(res.statusCode, 201);
-  assert.equal(res.body.ano_base, 2022);
+  assert.equal(res.body.ano_base, 2024);
   assert.equal(res.body.ano_actual, 2026);
-  assert.equal(res.body.valor_actual, 200);
+  assert.equal(res.body.valor_actual, 500, 'Dos años al 25 % predeterminado');
+
+  const old = database({ rows: [], acquisitionYear: 2021 });
+  const fullyDepreciated = response();
+  await crearDepreciacion({ body: { bienId: 7, valorInicial: 1000 } }, fullyDepreciated, old.sql, today);
+  assert.equal(fullyDepreciated.body.valor_actual, 0, 'Superada la vida útil de 4 años queda en cero');
 
   const sameYear = database({ rows: [], acquisitionYear: 2026 });
   const fresh = response();
   await crearDepreciacion({ body: { bienId: 7, valorInicial: 1000 } }, fresh, sameYear.sql, today);
   assert.equal(fresh.body.valor_actual, 1000, 'Adquirido este año: aún no se deprecia');
+});
+
+test('depreciación: sin tasa explícita usa la configurada; si es inválida, el 25 % predeterminado', async () => {
+  for (const [config, expected] of [[{ depreciacionAnual: 30 }, 30], [{ depreciacionAnual: '12.5' }, 12.5],
+    [{ depreciacionAnual: 0 }, 25], [{ depreciacionAnual: 'abc' }, 25], [{ depreciacionAnual: 150 }, 25], [{}, 25], [null, 25]]) {
+    const { sql } = database({ rows: [], config });
+    const res = response();
+    await crearDepreciacion({ body: { bienId: 7, valorInicial: 1000 } }, res, sql, today);
+    assert.equal(res.statusCode, 201, JSON.stringify(config));
+    assert.equal(res.body.porcentaje_anual, expected, JSON.stringify(config));
+  }
+  const explicit = database({ rows: [], config: { depreciacionAnual: 30 } });
+  const res = response();
+  await crearDepreciacion({ body: { bienId: 7, valorInicial: 1000, porcentajeAnual: 10 } }, res, explicit.sql, today);
+  assert.equal(res.body.porcentaje_anual, 10, 'La tasa explícita prevalece sobre la configurada');
 });
 
 test('depreciación: una fecha de adquisición futura o ausente se rechaza sin escribir', async () => {

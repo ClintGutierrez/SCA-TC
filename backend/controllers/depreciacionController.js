@@ -1,4 +1,4 @@
-import { anoAdquisicion, anoLima, calcularAlAno, calcularDepreciacion, depreciationError, validarBienId, validarPorcentajeAnual, validarValorInicial } from '../utils/depreciacion.js';
+import { anoAdquisicion, anoLima, calcularAlAno, calcularDepreciacion, depreciationError, tasaConfigurada, validarBienId, validarPorcentajeAnual, validarValorInicial } from '../utils/depreciacion.js';
 export { calcularDepreciacion } from '../utils/depreciacion.js';
 
 const respondError = (res, error) => {
@@ -36,9 +36,11 @@ export const crearDepreciacion = async (req, res, sql, now = new Date()) => {
   try {
     const bienId = validarBienId(req.body?.bienId);
     const valorInicial = validarValorInicial(req.body?.valorInicial);
-    const porcentajeAnual = req.body?.porcentajeAnual === undefined ? 20 : validarPorcentajeAnual(req.body.porcentajeAnual);
+    // Sin tasa explícita se usa la configurada (25 % por defecto); 0 explícito se respeta.
+    const tasaExplicita = req.body?.porcentajeAnual === undefined ? null : validarPorcentajeAnual(req.body.porcentajeAnual);
     const year = anoLima(now);
     const depreciacion = await sql.begin(async (tx) => {
+      const porcentajeAnual = tasaExplicita ?? await tasaConfigurada(tx);
       const [asset] = await tx`
         SELECT id, EXTRACT(YEAR FROM fecha_adquisicion)::integer AS ano_adquisicion
         FROM bienes_informaticos WHERE id = ${bienId} FOR UPDATE

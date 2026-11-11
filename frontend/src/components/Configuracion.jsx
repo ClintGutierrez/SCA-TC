@@ -17,7 +17,7 @@ const tabs = [
 
 const defaults = {
   institution: { nombre: '', ruc: '', direccion: '', telefono: '', correo: '', responsable: '' },
-  inventory: { moneda: 'PEN', garantiaPredeterminada: 1, depreciacionAnual: 20, requiereCodigoPatrimonial: true, requiereNumeroSerie: false },
+  inventory: { moneda: 'PEN', garantiaPredeterminada: 1, depreciacionAnual: 25, requiereCodigoPatrimonial: true, requiereNumeroSerie: false },
   assignments: { requiereActa: true, requiereFirmaResponsable: true, permiteMultiplesBienes: true },
   bajas: { requiereFotoFrontal: true, requiereFotoLateral: true, documentoOpcional: true, vigenciaUrlHoras: 1 },
   maintenance: { requiereCosto: false, requiereResponsable: true, alertaDias: 30 },
@@ -29,7 +29,7 @@ const defaults = {
 
 const labels = {
   institution: [['nombre', 'Nombre institucional'], ['ruc', 'RUC'], ['direccion', 'Dirección'], ['telefono', 'Teléfono'], ['correo', 'Correo institucional'], ['responsable', 'Responsable del sistema']],
-  inventory: [['moneda', 'Moneda'], ['garantiaPredeterminada', 'Garantía predeterminada (años)'], ['depreciacionAnual', 'Depreciación anual (%)']],
+  inventory: [['moneda', 'Moneda'], ['garantiaPredeterminada', 'Garantía predeterminada (años)'], ['depreciacionAnual', 'Depreciación anual (%, línea recta; vida útil = 100 ÷ tasa)']],
   assignments: [], bajas: [['vigenciaUrlHoras', 'Vigencia de enlaces de evidencias (horas)']], maintenance: [['alertaDias', 'Alertar mantenimiento con anticipación (días)']],
   reports: [['formatoFecha', 'Formato de fecha'], ['piePagina', 'Pie de página de reportes']],
   notifications: [], audit: [['retencionDias', 'Retención de auditoría (días)']],

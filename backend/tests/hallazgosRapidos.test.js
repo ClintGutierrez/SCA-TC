@@ -175,3 +175,23 @@ test('H10: un error de firma para una ruta existente sigue propagándose', async
   storage(t, async () => ({ ok: false, status: 503, text: async () => 'Servicio no disponible' }));
   await assert.rejects(createEvidenceUrl('1/documento'), /Storage respondió 503/);
 });
+
+test('configuración: la depreciación anual debe ser un porcentaje mayor que 0 y hasta 100', async () => {
+  const saved = [];
+  const tx = async (parts, ...values) => {
+    if (parts.join('').includes('INSERT INTO configuracion_sistema')) saved.push(values[1]);
+    return [];
+  };
+  tx.json = (value) => value;
+  const sql = { begin: (callback) => callback(tx) };
+  for (const depreciacionAnual of [0, -5, 101, 'abc', '', null, 12.345]) {
+    const res = response();
+    await saveConfiguracion({ user: { sub: 7 }, body: { settings: { inventory: { moneda: 'PEN', depreciacionAnual } } } }, res, sql);
+    assert.equal(res.statusCode, 400, `Debe rechazar ${String(depreciacionAnual)}`);
+  }
+  assert.equal(saved.length, 0);
+  const res = response();
+  await saveConfiguracion({ user: { sub: 7 }, body: { settings: { inventory: { moneda: 'PEN', depreciacionAnual: '30' } } } }, res, sql);
+  assert.equal(res.statusCode, 200);
+  assert.equal(saved[0].depreciacionAnual, 30, 'Se guarda como número');
+});

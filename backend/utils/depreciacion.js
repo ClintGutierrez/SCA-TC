@@ -1,5 +1,9 @@
 export const depreciationError = (status, message) => Object.assign(new Error(message), { status });
 
+// Tasa anual por defecto en línea recta: 25 % = 4 años de vida útil, la tasa máxima que SUNAT admite
+// para equipos de procesamiento de datos. El administrador puede cambiarla en Configuración.
+export const DEPRECIACION_ANUAL_PREDETERMINADA = 25;
+
 const decimal = (value, max, label) => {
   if (!['number', 'string'].includes(typeof value) || !/^\d+(?:\.\d{1,2})?$/.test(String(value).trim())) {
     throw depreciationError(400, `${label} debe ser un número válido con hasta dos decimales`);
@@ -23,6 +27,18 @@ export const validarBienId = (value) => {
     throw depreciationError(400, 'El identificador del bien no es válido');
   }
   return id;
+};
+
+// Tasa configurada en Configuración > Inventario; si falta o no es válida, la predeterminada.
+export const tasaConfigurada = async (tx) => {
+  const [row] = await tx`SELECT valor FROM configuracion_sistema WHERE clave = 'inventory'`;
+  const tasa = row?.valor?.depreciacionAnual;
+  try {
+    const valor = validarPorcentajeAnual(tasa);
+    return valor > 0 ? valor : DEPRECIACION_ANUAL_PREDETERMINADA;
+  } catch {
+    return DEPRECIACION_ANUAL_PREDETERMINADA;
+  }
 };
 
 export const anoLima = (date = new Date()) => Number(new Intl.DateTimeFormat('en-CA', {

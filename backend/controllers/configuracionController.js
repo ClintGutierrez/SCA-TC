@@ -1,3 +1,5 @@
+import { DEPRECIACION_ANUAL_PREDETERMINADA, validarPorcentajeAnual } from '../utils/depreciacion.js';
+
 const DEFAULT_SETTINGS = {
   institution: {
     nombre: 'Tribunal Constitucional del Perú',
@@ -10,7 +12,7 @@ const DEFAULT_SETTINGS = {
   inventory: {
     moneda: 'PEN',
     garantiaPredeterminada: 1,
-    depreciacionAnual: 20,
+    depreciacionAnual: DEPRECIACION_ANUAL_PREDETERMINADA,
     requiereCodigoPatrimonial: true,
     requiereNumeroSerie: false,
   },
@@ -110,6 +112,15 @@ export const saveConfiguracion = async (req, res, sql) => {
     const settings = req.body?.settings;
     const catalogs = req.body?.catalogs;
     if (!settings || typeof settings !== 'object') return res.status(400).json({ error: 'La configuración es inválida' });
+    if (settings.inventory && typeof settings.inventory === 'object' && Object.hasOwn(settings.inventory, 'depreciacionAnual')) {
+      try {
+        const tasa = validarPorcentajeAnual(settings.inventory.depreciacionAnual);
+        if (tasa <= 0) throw new Error();
+        settings.inventory = { ...settings.inventory, depreciacionAnual: tasa };
+      } catch {
+        return res.status(400).json({ error: 'La depreciación anual debe ser un porcentaje mayor que 0 y hasta 100, con hasta dos decimales' });
+      }
+    }
 
     await sql.begin(async (transaction) => {
       for (const [clave, valor] of Object.entries(settings)) {
