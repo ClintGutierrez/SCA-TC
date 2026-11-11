@@ -1,7 +1,12 @@
-import { getYear } from 'date-fns';
+import { anoLima, calcularAlAno, depreciationError, validarBienId, validarPorcentajeAnual, validarValorInicial } from '../utils/depreciacion.js';
+export { calcularDepreciacion } from '../utils/depreciacion.js';
 
-export const calcularDepreciacion = (valorInicial, porcentajeAnual, anios) => {
-  return valorInicial * Math.pow(1 - porcentajeAnual / 100, anios);
+const respondError = (res, error) => {
+  if (error.status) return res.status(error.status).json({ error: error.message });
+  if (error.code === '23503') return res.status(404).json({ error: 'Bien no encontrado' });
+  if (error.code === '23514' || error.code === '22003') return res.status(400).json({ error: 'Los valores de depreciación no son válidos' });
+  console.error('Error en depreciación:', error);
+  return res.status(500).json({ error: 'No se pudo procesar la depreciación' });
 };
 
 export const getDepreciacion = async (req, res, sql) => {
@@ -9,64 +14,65 @@ export const getDepreciacion = async (req, res, sql) => {
     const depreciacion = await sql`SELECT * FROM depreciacion`;
     res.json(depreciacion);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    respondError(res, error);
   }
 };
 
 export const getDepreciacionPorBien = async (req, res, sql) => {
   try {
-    const { bienId } = req.params;
+    const bienId = validarBienId(req.params.bienId);
     const depreciacion = await sql`SELECT * FROM depreciacion WHERE bien_id = ${bienId}`;
     if (depreciacion.length === 0) {
       return res.status(404).json({ error: 'Depreciación no encontrada' });
     }
+    if (depreciacion.length > 1) throw depreciationError(409, 'El bien tiene varias depreciaciones; concilie sus registros antes de continuar');
     res.json(depreciacion[0]);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    respondError(res, error);
   }
 };
 
-export const crearDepreciacion = async (req, res, sql) => {
+export const crearDepreciacion = async (req, res, sql, now = new Date()) => {
   try {
-    const { bienId, valorInicial, porcentajeAnual } = req.body;
-    const anoActual = getYear(new Date());
-    
-    const depreciacion = await sql`
-      INSERT INTO depreciacion (bien_id, valor_inicial, porcentaje_anual, valor_actual, ano_actual)
-      VALUES (${bienId}, ${valorInicial}, ${porcentajeAnual || 20}, ${valorInicial}, ${anoActual})
-      RETURNING *
-    `;
-    res.status(201).json(depreciacion[0]);
+    const bienId = validarBienId(req.body?.bienId);
+    const valorInicial = validarValorInicial(req.body?.valorInicial);
+    const porcentajeAnual = req.body?.porcentajeAnual === undefined ? 20 : validarPorcentajeAnual(req.body.porcentajeAnual);
+    const year = anoLima(now);
+    const depreciacion = await sql.begin(async (tx) => {
+      const [asset] = await tx`SELECT id FROM bienes_informaticos WHERE id = ${bienId} FOR UPDATE`;
+      if (!asset) throw depreciationError(404, 'Bien no encontrado');
+      const existing = await tx`SELECT id FROM depreciacion WHERE bien_id = ${bienId}`;
+      if (existing.length) throw depreciationError(409, 'El bien ya tiene una depreciación registrada');
+      const [created] = await tx`
+        INSERT INTO depreciacion (bien_id, valor_inicial, porcentaje_anual, valor_actual, ano_base, ano_actual)
+        VALUES (${bienId}, ${valorInicial}, ${porcentajeAnual}, ${valorInicial}, ${year}, ${year}) RETURNING *
+      `;
+      return created;
+    });
+    res.status(201).json(depreciacion);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    respondError(res, error);
   }
 };
 
-export const actualizarDepreciacion = async (req, res, sql) => {
+export const actualizarDepreciacion = async (req, res, sql, now = new Date()) => {
   try {
-    const { bienId } = req.params;
-    
-    // Obtener datos de depreciación
-    const depreciacionData = await sql`SELECT * FROM depreciacion WHERE bien_id = ${bienId}`;
-    if (depreciacionData.length === 0) {
-      return res.status(404).json({ error: 'Depreciación no encontrada' });
-    }
-    
-    const { valor_inicial, porcentaje_anual, ano_actual } = depreciacionData[0];
-    const anoActual = getYear(new Date());
-    const anios = anoActual - ano_actual;
-    
-    const nuevoValor = calcularDepreciacion(valor_inicial, porcentaje_anual, anios);
-    
-    const result = await sql`
-      UPDATE depreciacion 
-      SET valor_actual = ${nuevoValor}, ano_actual = ${anoActual}
-      WHERE bien_id = ${bienId}
-      RETURNING *
-    `;
-    
-    res.json(result[0]);
+    const bienId = validarBienId(req.params.bienId);
+    const year = anoLima(now);
+    const result = await sql.begin(async (tx) => {
+      const rows = await tx`SELECT * FROM depreciacion WHERE bien_id = ${bienId} ORDER BY id FOR UPDATE`;
+      if (!rows.length) throw depreciationError(404, 'Depreciación no encontrada');
+      if (rows.length > 1) throw depreciationError(409, 'El bien tiene varias depreciaciones; concilie sus registros antes de continuar');
+      const current = rows[0];
+      const value = calcularAlAno(current, year);
+      const [updated] = await tx`
+        UPDATE depreciacion SET valor_actual = ${value}, ano_actual = ${year}, updated_at = CURRENT_TIMESTAMP
+        WHERE id = ${current.id} RETURNING *
+      `;
+      return updated;
+    });
+    res.json(result);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    respondError(res, error);
   }
 };

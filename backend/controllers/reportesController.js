@@ -25,7 +25,9 @@ export const getReporteDepreciacion = async (req, res, sql) => {
         d.valor_inicial,
         d.valor_actual,
         (d.valor_inicial - d.valor_actual) as depreciacion_total,
-        ROUND(((d.valor_inicial - d.valor_actual) / d.valor_inicial * 100)::numeric, 2) as porcentaje_depreciacion
+        CASE WHEN d.valor_inicial = 0 THEN 0::numeric
+          ELSE ROUND(((d.valor_inicial - d.valor_actual) / NULLIF(d.valor_inicial, 0) * 100)::numeric, 2)
+        END as porcentaje_depreciacion
       FROM bienes_informaticos b
       LEFT JOIN depreciacion d ON b.id = d.bien_id
       ORDER BY b.nombre

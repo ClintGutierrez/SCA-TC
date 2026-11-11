@@ -8,7 +8,8 @@ CREATE TABLE IF NOT EXISTS bienes_informaticos (
   modelo VARCHAR(100),
   numero_serie VARCHAR(100),
   fecha_adquisicion DATE NOT NULL,
-  costo DECIMAL(12, 2) NOT NULL,
+  costo DECIMAL(12, 2) NOT NULL CONSTRAINT chk_bienes_costo_valido
+    CHECK (costo >= 0 AND costo::text NOT IN ('NaN', 'Infinity', '-Infinity')),
   usuario_asignado VARCHAR(255),
   estado VARCHAR(50) DEFAULT 'activo',
   ubicacion VARCHAR(255),
@@ -171,6 +172,7 @@ CREATE TABLE IF NOT EXISTS depreciacion (
   valor_inicial DECIMAL(12, 2),
   porcentaje_anual DECIMAL(5, 2) DEFAULT 20.0,
   valor_actual DECIMAL(12, 2),
+  ano_base INTEGER NOT NULL,
   ano_actual INTEGER,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP

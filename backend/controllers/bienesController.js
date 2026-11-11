@@ -25,6 +25,9 @@ const TIPOS = {
 
 const limpiar = (valor) => (typeof valor === 'string' ? valor.trim() : valor);
 
+const costoValido = (valor) => (typeof valor === 'number' || (typeof valor === 'string' && valor.trim() !== ''))
+  && Number.isFinite(Number(valor)) && Number(valor) >= 0;
+
 const fechaValida = (texto) => {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(texto)) return false;
   const fecha = new Date(`${texto}T00:00:00Z`);
@@ -87,7 +90,7 @@ export const createBien = async (req, res, sql) => {
   if (macIngresada && !MAC_REGEX.test(macIngresada)) {
     campos.direccionMac = 'Formato de MAC inválido (ej. A1:B2:C3:D4:E5:F6)';
   }
-  if (valor !== null && (Number.isNaN(valor) || valor < 0)) {
+  if (valor !== null && !costoValido(body.valor)) {
     campos.valor = 'El valor debe ser un número mayor o igual a 0';
   }
 
@@ -187,12 +190,15 @@ export const updateBien = async (req, res, sql) => {
       if (['baja', 'dado_de_baja'].includes(String(previous.estado).toLowerCase())) {
         return { status: 403, error: 'No se puede modificar la ficha técnica de un bien dado de baja' };
       }
+      if (Object.hasOwn(req.body, 'estado') && req.body.estado !== previous.estado) {
+        return { status: 409, error: 'El estado del bien se gestiona desde Bajas, Movimientos o Mantenimiento' };
+      }
       const values = {
         nombre: value('nombre', previous.nombre), descripcion: value('descripcion', previous.descripcion),
         tipo: value('tipo', previous.tipo), marca: value('marca', previous.marca),
         modelo: value('modelo', previous.modelo), numeroSerie: value('numeroSerie', previous.numero_serie),
         fechaAdquisicion: value('fechaAdquisicion', previous.fecha_adquisicion), costo: value('costo', previous.costo),
-        usuarioAsignado: value('usuarioAsignado', previous.usuario_asignado), estado: value('estado', previous.estado),
+        usuarioAsignado: value('usuarioAsignado', previous.usuario_asignado),
         ubicacion: value('ubicacion', previous.ubicacion), especificaciones: value('especificaciones', previous.especificaciones || {}),
         imagenUrl: value('imagenUrl', previous.imagen_url), codigoPatrimonial: value('codigoPatrimonial', previous.codigo_patrimonial),
         direccionMac: value('direccionMac', previous.direccion_mac), ordenCompra: value('ordenCompra', previous.orden_compra),
@@ -203,13 +209,16 @@ export const updateBien = async (req, res, sql) => {
           !values.fechaAdquisicion || values.costo === null || values.costo === '') {
         return { status: 400, error: 'Nombre, tipo, fecha de adquisición y costo son obligatorios' };
       }
+      if (!costoValido(values.costo)) {
+        return { status: 400, error: 'El costo debe ser un número finito mayor o igual a 0' };
+      }
       const [updated] = await transaction`
         UPDATE bienes_informaticos SET nombre = ${String(values.nombre).trim()},
           descripcion = ${values.descripcion || null}, tipo = ${String(values.tipo).trim()},
           marca = ${values.marca || null}, modelo = ${values.modelo || null},
           numero_serie = ${values.numeroSerie || null}, fecha_adquisicion = ${values.fechaAdquisicion},
-          costo = ${values.costo}, usuario_asignado = ${values.usuarioAsignado || null},
-          estado = ${values.estado || 'activo'}, ubicacion = ${values.ubicacion || null},
+          costo = ${Number(values.costo)}, usuario_asignado = ${values.usuarioAsignado || null},
+          ubicacion = ${values.ubicacion || null},
           especificaciones = ${transaction.json(values.especificaciones || {})},
           detalles = ${transaction.json(values.detalles || {})},
           imagen_url = ${values.imagenUrl || null}, codigo_patrimonial = ${values.codigoPatrimonial || null},

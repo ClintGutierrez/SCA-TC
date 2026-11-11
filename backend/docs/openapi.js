@@ -147,10 +147,18 @@ export const openapiSpec = {
           400: { description: 'Datos invalidos' },
           401: { description: 'No autenticado' },
           403: { description: 'Permisos insuficientes' },
+          404: { description: 'Bien no encontrado' },
+          409: { description: 'El bien ya tiene depreciacion registrada' },
         }),
         requestBody: {
           required: true,
-          content: { 'application/json': { schema: { type: 'object' } } },
+          content: { 'application/json': { schema: {
+            type: 'object', required: ['bienId', 'valorInicial'], properties: {
+              bienId: { type: 'integer', minimum: 1 },
+              valorInicial: { type: 'number', minimum: 0, maximum: 9999999999.99, multipleOf: 0.01 },
+              porcentajeAnual: { type: 'number', minimum: 0, maximum: 100, multipleOf: 0.01, default: 20 },
+            },
+          } } },
         },
       },
     },
@@ -161,7 +169,12 @@ export const openapiSpec = {
     '/api/depreciacion/{bienId}': {
       parameters: [idParameter('bienId')],
       get: secured('Obtener depreciacion de un bien', ['Depreciacion']),
-      put: secured('Actualizar depreciacion de un bien', ['Depreciacion']),
+      put: secured('Recalcular desde el ano base sin acumular depreciacion', ['Depreciacion'], {
+        200: { description: 'Importe recalculado para el ano calendario actual en America/Lima' },
+        400: { description: 'Identificador invalido' },
+        404: { description: 'Depreciacion no encontrada' },
+        409: { description: 'Base, cronologia o registros duplicados requieren conciliacion' },
+      }),
     },
     '/api/reportes/inventario': {
       get: secured('Generar reporte de inventario', ['Reportes']),
