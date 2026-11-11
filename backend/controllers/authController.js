@@ -259,10 +259,19 @@ export const updateProfile = async (req, res, sql) => {
         throw userError(403, 'Usuario sin acceso habilitado');
       }
 
-      // Cambiar la contraseña o el correo de acceso exige demostrar la contraseña actual,
-      // para que un token de acceso robado no baste para apropiarse de la cuenta.
+      // El correo de acceso identifica al usuario como jefe inmediato al aprobar movimientos
+      // patrimoniales y no se verifica por correo: solo un administrador puede cambiarlo
+      // (desde Usuarios). Así nadie puede tomar el correo de un jefe para aprobar en su nombre.
       const emailChanged = normalizedEmail !== String(current.email || '').toLowerCase();
-      if (changePassword || emailChanged) {
+      if (emailChanged) {
+        throw userError(403, 'Solo un administrador puede cambiar el correo de acceso', {
+          email: 'Pide a un administrador que cambie tu correo.',
+        });
+      }
+
+      // Cambiar la contraseña exige demostrar la actual, para que un token de acceso robado
+      // no baste para apropiarse de la cuenta.
+      if (changePassword) {
         const valid = typeof currentPassword === 'string' && currentPassword !== ''
           && await comparePassword(currentPassword, current.password_hash);
         if (!valid) {
@@ -270,15 +279,9 @@ export const updateProfile = async (req, res, sql) => {
         }
       }
 
-      const duplicates = await tx`
-        SELECT id FROM usuarios WHERE LOWER(email) = ${normalizedEmail} AND id <> ${userId} LIMIT 1
-      `;
-      if (duplicates.length) throw userError(409, 'Ya existe un usuario con ese email', { email: 'Este correo ya está registrado.' });
-
       const [user] = await tx`
         UPDATE usuarios
         SET nombre = ${normalizedName},
-            email = ${normalizedEmail},
             departamento = ${normalizedDepartment || null},
             password_hash = ${newPasswordHash || current.password_hash}
         WHERE id = ${userId}

@@ -64,9 +64,9 @@ export default function NavBar({ currentUser, sidebarOpen, onProfileUpdate, onTo
     }
   };
 
-  // El backend exige la contraseña actual para cambiar la contraseña o el correo de acceso.
-  const needsCurrentPassword = profileForm.password !== ''
-    || profileForm.email.trim().toLowerCase() !== String(currentUser.email || '').toLowerCase();
+  // El backend exige la contraseña actual para cambiar la contraseña. El correo de acceso
+  // solo lo cambia un administrador, por eso el formulario lo muestra sin permitir editarlo.
+  const needsCurrentPassword = profileForm.password !== '';
 
   return (
     <header className="sca-topbar">
@@ -145,7 +145,8 @@ export default function NavBar({ currentUser, sidebarOpen, onProfileUpdate, onTo
                 </label>
                 <label className="block text-sm font-medium text-slate-700">
                   Correo electrónico
-                  <input type="email" name="email" value={profileForm.email} onChange={handleProfileChange} className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-100" required />
+                  <input type="email" name="email" value={profileForm.email} readOnly aria-describedby="profile-email-help" className="mt-1 w-full cursor-not-allowed rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-slate-500 outline-none" />
+                  <span id="profile-email-help" className="mt-1 block text-xs font-normal text-slate-500">Solo un administrador puede cambiar el correo de acceso.</span>
                 </label>
                 <label className="block text-sm font-medium text-slate-700">
                   Departamento
@@ -158,7 +159,7 @@ export default function NavBar({ currentUser, sidebarOpen, onProfileUpdate, onTo
                 {needsCurrentPassword && (
                   <label className="block text-sm font-medium text-slate-700">
                     Contraseña actual
-                    <span className="block text-xs font-normal text-slate-500">Necesaria para cambiar tu contraseña o tu correo.</span>
+                    <span className="block text-xs font-normal text-slate-500">Necesaria para cambiar tu contraseña.</span>
                     <input type="password" name="currentPassword" value={profileForm.currentPassword} onChange={handleProfileChange} autoComplete="current-password" className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-100" required />
                   </label>
                 )}

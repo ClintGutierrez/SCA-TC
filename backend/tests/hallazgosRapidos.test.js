@@ -58,7 +58,7 @@ test('H09: cambiar contraseña permite entrar con la nueva y rechaza la anterior
     if (query.includes('WHERE LOWER(email)') && query.includes('id <>')) return [];
     if (query.includes('UPDATE usuarios') && query.includes('password_hash =')) {
       assert.equal(values.at(-1), user.id);
-      savedHash = values[3];
+      savedHash = values[2]; // nombre, departamento, password_hash, id
       user.password_hash = savedHash;
       return [{ ...user }];
     }

@@ -36,7 +36,7 @@ const fakeSql = (user) => {
     log.push({ query, values });
     if (query.includes('FROM usuarios') && query.includes('LOWER(email)') && query.includes('id <>')) return [];
     if (query.includes('FROM usuarios')) return user ? [{ ...user }] : [];
-    if (query.includes('UPDATE usuarios') && query.includes('RETURNING')) return [{ ...user, email: values[1] }];
+    if (query.includes('UPDATE usuarios') && query.includes('RETURNING')) return [{ ...user, nombre: values[0] }];
     return [];
   };
   sql.begin = (callback) => callback(sql);
@@ -88,27 +88,27 @@ test('perfil: cambiar la contraseña exige la contraseña actual correcta', asyn
   }
 });
 
-test('perfil: cambiar el correo exige la contraseña actual; nombre y departamento no', async () => {
+test('perfil: el usuario no puede cambiar su correo, ni con la contraseña actual', async () => {
   const user = await baseUser();
-  const denied = fakeSql(user);
-  const res = response();
-  await updateProfile({ user: { sub: 7 }, body: { ...user, email: 'otro@example.test' } }, res, denied.sql);
-  assert.equal(res.statusCode, 403);
-  assert.equal(denied.updates().length, 0);
-
-  const allowed = fakeSql(user);
-  const ok = response();
-  await updateProfile({ user: { sub: 7 }, body: { nombre: 'Nuevo nombre', email: 'OPERADOR@example.test', departamento: 'Soporte' } }, ok, allowed.sql);
-  assert.equal(ok.statusCode, 200, 'Cambiar mayúsculas del mismo correo no cuenta como cambio');
+  for (const currentPassword of [undefined, PASSWORD]) {
+    const denied = fakeSql(user);
+    const res = response();
+    await updateProfile({ user: { sub: 7 }, body: { ...user, email: 'jefe@example.test', currentPassword } }, res, denied.sql);
+    assert.equal(res.statusCode, 403);
+    assert.ok(res.body.campos.email);
+    assert.equal(denied.updates().length, 0, 'No debe modificar la cuenta');
+  }
 });
 
-test('perfil: el correo se guarda en minúsculas', async () => {
+test('perfil: nombre y departamento se editan sin contraseña y el correo no se reescribe', async () => {
   const user = await baseUser();
   const db = fakeSql(user);
   const res = response();
-  await updateProfile({ user: { sub: 7 }, body: { ...user, email: '  Nuevo@Example.TEST ', currentPassword: PASSWORD } }, res, db.sql);
-  assert.equal(res.statusCode, 200);
-  assert.equal(db.updates()[0].values[1], 'nuevo@example.test');
+  await updateProfile({ user: { sub: 7 }, body: { nombre: 'Nuevo nombre', email: ' OPERADOR@example.test ', departamento: 'Soporte' } }, res, db.sql);
+  assert.equal(res.statusCode, 200, 'Cambiar mayúsculas del mismo correo no cuenta como cambio');
+  const [update] = db.updates();
+  assert.equal(update.query.includes('email ='), false, 'El perfil no debe escribir el correo');
+  assert.deepEqual(update.values.slice(0, 2), ['Nuevo nombre', 'Soporte']);
 });
 
 test('perfil: valida longitud de contraseña y formato de correo antes de consultar SQL', async () => {

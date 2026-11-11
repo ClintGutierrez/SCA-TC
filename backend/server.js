@@ -18,6 +18,7 @@ import { createBajasRouter } from './routes/bajas.js';
 import { createAsignacionesRouter } from './routes/asignaciones.js';
 import { createMovimientosRouter } from './routes/movimientos.js';
 import { ensureAuthColumns } from './utils/auth.js';
+import { parseTrustProxy } from './utils/proxy.js';
 import { openapiSpec } from './docs/openapi.js';
 import { createGestionTIRouter } from './routes/gestionTI.js';
 import { startNotificationWorker } from './utils/notificacionesTI.js';
@@ -32,6 +33,8 @@ if (missingDatabaseEnv.length > 0) {
 }
 
 const app = express();
+// Necesario para que los límites de intentos usen la IP real del cliente detrás de un proxy.
+app.set('trust proxy', parseTrustProxy(process.env.TRUST_PROXY));
 const PORT = process.env.PORT || 5000;
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000';
 const allowedFrontendOrigins = new Set([FRONTEND_URL, 'http://localhost:3000', 'http://localhost:5173']);

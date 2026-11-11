@@ -24,8 +24,14 @@ DB_NAME=inventario_bienes
 DB_USER=usuario_db
 DB_PASSWORD=contraseña_segura
 
+# Número de proxies inverso delante del backend (nginx, Heroku…). Por defecto en producción: 1.
+# Usa 'false' si el backend recibe las conexiones directamente. Nunca uses 'true'.
+TRUST_PROXY=1
+
 VITE_API_URL=https://tudominio.com/api
 ```
+
+> **Proxy inverso:** los límites de intentos (login y formulario público de Solicitudes TI) se aplican por IP de cliente. Si `TRUST_PROXY` no coincide con el número real de proxies, todos los usuarios comparten el mismo contador (con muy pocos) o un cliente puede falsear su IP con `X-Forwarded-For` (con demasiados).
 
 ### 3. Servir Frontend Estático desde Backend (Opcional)
 
