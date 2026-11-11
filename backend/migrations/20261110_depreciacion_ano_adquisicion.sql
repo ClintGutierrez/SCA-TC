@@ -39,9 +39,9 @@ cambios AS (
   UPDATE depreciacion d
   SET ano_base = p.ano_adquisicion,
       ano_actual = GREATEST(d.ano_actual, p.ano_adquisicion),
-      valor_actual = LEAST(d.valor_inicial, GREATEST(0, ROUND(
-        d.valor_inicial * POWER(1 - d.porcentaje_anual / 100, GREATEST(d.ano_actual, p.ano_adquisicion) - p.ano_adquisicion),
-        2))),
+      -- Línea recta, igual que calcularDepreciacion en utils/depreciacion.js.
+      valor_actual = GREATEST(0, d.valor_inicial - ROUND(
+        d.valor_inicial * d.porcentaje_anual * (GREATEST(d.ano_actual, p.ano_adquisicion) - p.ano_adquisicion) / 100, 2)),
       updated_at = CURRENT_TIMESTAMP
   FROM previos p
   WHERE d.id = p.id

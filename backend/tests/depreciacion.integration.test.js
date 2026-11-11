@@ -52,17 +52,17 @@ test('H05 en PostgreSQL aislado: migración, repetición, concurrencia y reporte
       assert.equal(res.statusCode, 409);
     });
 
-    await t.test('tres actualizaciones concurrentes dejan S/ 640 y la base original', async () => {
+    await t.test('tres actualizaciones concurrentes dejan S/ 600 y la base original', async () => {
       const responses = await Promise.all(Array.from({ length: 3 }, async () => {
         const res = response();
         await actualizarDepreciacion({ params: { bienId: legacyId } }, res, sql, today);
         return res;
       }));
-      responses.forEach((res) => { assert.equal(res.statusCode, 200); assert.equal(Number(res.body.valor_actual), 640); });
+      responses.forEach((res) => { assert.equal(res.statusCode, 200); assert.equal(Number(res.body.valor_actual), 600); });
       const [row] = await sql`SELECT * FROM depreciacion WHERE bien_id=${legacyId}`;
       assert.equal(row.ano_base, 2024);
       assert.equal(row.ano_actual, 2026);
-      assert.equal(Number(row.valor_actual), 640);
+      assert.equal(Number(row.valor_actual), 600);
     });
 
     let zeroAssetId;
@@ -118,7 +118,7 @@ test('H05 en PostgreSQL aislado: migración, repetición, concurrencia y reporte
       const [row] = await sql`SELECT * FROM depreciacion WHERE bien_id=${id}`;
       assert.equal(row.ano_base, 2022);
       assert.equal(row.ano_actual, 2026);
-      assert.equal(Number(row.valor_actual), 409.6);
+      assert.equal(Number(row.valor_actual), 200);
       const audit = await sql`SELECT * FROM audit_log WHERE tabla_afectada='depreciacion' AND registro_id=${row.id}`;
       assert.equal(audit.length, 1, 'Repetir la conciliación no duplica cambios ni auditoría');
       assert.equal(audit[0].datos_anteriores.ano_base, 2026);
@@ -127,9 +127,26 @@ test('H05 en PostgreSQL aislado: migración, repetición, concurrencia y reporte
       const res = response();
       await actualizarDepreciacion({ params: { bienId: id } }, res, sql, today);
       assert.equal(res.statusCode, 200);
-      assert.equal(Number(res.body.valor_actual), 409.6);
+      assert.equal(Number(res.body.valor_actual), 200);
       // Fuera de la conciliación el año base sigue protegido.
       await assert.rejects(sql`UPDATE depreciacion SET ano_base=2023 WHERE bien_id=${id}`, { code: '23514' });
+    });
+
+    await t.test('el recálculo en línea recta corrige importes antiguos, es repetible y queda auditado', async () => {
+      const [{ id }] = await sql`INSERT INTO bienes_informaticos (nombre,tipo,fecha_adquisicion)
+        VALUES ('Equipo saldo decreciente','otro','2023-01-15') RETURNING id`;
+      // Importe calculado con el método anterior: 1000 × 0,8^3 = 512.
+      const [old] = await sql`INSERT INTO depreciacion (bien_id,valor_inicial,porcentaje_anual,valor_actual,ano_base,ano_actual)
+        VALUES (${id},1000,20,512,2023,2026) RETURNING id`;
+      const lineaRecta = await fs.readFile(new URL('../migrations/20261110_depreciacion_linea_recta.sql', import.meta.url), 'utf8');
+      await sql.begin((tx) => tx.unsafe(lineaRecta));
+      await sql.begin((tx) => tx.unsafe(lineaRecta));
+      const [row] = await sql`SELECT * FROM depreciacion WHERE id=${old.id}`;
+      assert.equal(Number(row.valor_actual), 400);
+      const audit = await sql`SELECT * FROM audit_log WHERE operacion='RECALCULAR_LINEA_RECTA' AND registro_id=${old.id}`;
+      assert.equal(audit.length, 1);
+      assert.equal(Number(audit[0].datos_anteriores.valor_actual), 512);
+      assert.equal(Number(audit[0].datos_nuevos.valor_actual), 400);
     });
 
     await t.test('el reporte admite costo cero sin dividir entre cero', async () => {

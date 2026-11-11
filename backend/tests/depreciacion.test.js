@@ -36,13 +36,13 @@ function database({ rows = [original], assetExists = true, acquisitionYear = 202
   return { sql, writes };
 }
 
-test('H05: repetir el cálculo mantiene S/ 640 y conserva el año base', async () => {
+test('H05: repetir el cálculo mantiene S/ 600 y conserva el año base', async () => {
   const { sql, writes } = database();
   for (let run = 0; run < 3; run++) {
     const res = response();
     await actualizarDepreciacion({ params: { bienId: 7 } }, res, sql, today);
     assert.equal(res.statusCode, 200);
-    assert.equal(res.body.valor_actual, 640);
+    assert.equal(res.body.valor_actual, 600);
     assert.equal(res.body.ano_base, 2024);
     assert.equal(res.body.ano_actual, 2026);
   }
@@ -60,8 +60,16 @@ test('H05: calcular cada año o saltar años da el mismo importe sin acumular re
   const direct = database({ rows: [initial] });
   const res = response();
   await actualizarDepreciacion({ params: { bienId: 7 } }, res, direct.sql, new Date('2027-11-05T12:00:00Z'));
-  assert.equal(last.body.valor_actual, 0.03);
+  assert.equal(last.body.valor_actual, 0.02);
   assert.equal(res.body.valor_actual, last.body.valor_actual);
+});
+
+test('depreciación en línea recta: el mismo importe cada año hasta llegar a cero', () => {
+  assert.deepEqual([0, 1, 2, 3, 4, 5, 6].map((anios) => calcularDepreciacion(1000, 20, anios)), [1000, 800, 600, 400, 200, 0, 0]);
+  assert.deepEqual([0, 1, 2, 3, 4, 5].map((anios) => calcularDepreciacion(1000, 25, anios)), [1000, 750, 500, 250, 0, 0]);
+  // Redondeo único de la depreciación acumulada (no de cada año).
+  assert.equal(calcularDepreciacion('333.33', '33.33', 2), 111.13);
+  assert.equal(calcularDepreciacion('9999999999.99', '99.99', 1), 1000000);
 });
 
 test('H05: el cambio de año usa Lima y admite tasa cero, 100 %, costo cero y límites', () => {
@@ -112,7 +120,7 @@ test('depreciación: el año base es el de adquisición del bien, no el del regi
   assert.equal(res.statusCode, 201);
   assert.equal(res.body.ano_base, 2022);
   assert.equal(res.body.ano_actual, 2026);
-  assert.equal(res.body.valor_actual, 409.6);
+  assert.equal(res.body.valor_actual, 200);
 
   const sameYear = database({ rows: [], acquisitionYear: 2026 });
   const fresh = response();

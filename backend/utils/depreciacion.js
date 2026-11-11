@@ -44,11 +44,14 @@ export const calcularDepreciacion = (valorInicial, porcentajeAnual, anios) => {
   if (!Number.isInteger(anios) || anios < 0 || anios > 9998) {
     throw depreciationError(400, 'Los años transcurridos deben ser un entero mayor o igual a cero');
   }
-  // Redondear una sola vez, siempre desde el importe y el año base originales.
-  const initialCents = Math.round(initial * 100);
-  const result = initialCents * Math.pow(1 - rate / 100, anios);
-  const cents = Math.round(result + Number.EPSILON * Math.max(1, result));
-  return Math.min(initialCents, Math.max(0, cents)) / 100;
+  // Línea recta: cada año se deprecia el mismo porcentaje del valor inicial hasta llegar a cero
+  // (vida útil = 100 / tasa). Se calcula en céntimos con enteros exactos y se redondea una sola vez
+  // la depreciación acumulada, igual que ROUND(valor_inicial * tasa * años / 100, 2) en PostgreSQL.
+  const initialCents = BigInt(Math.round(initial * 100));
+  const rateHundredths = BigInt(Math.round(rate * 100));
+  const depreciatedCents = (initialCents * rateHundredths * BigInt(anios) + 5000n) / 10000n;
+  const cents = initialCents > depreciatedCents ? initialCents - depreciatedCents : 0n;
+  return Number(cents) / 100;
 };
 
 export const calcularAlAno = (row, targetYear) => {

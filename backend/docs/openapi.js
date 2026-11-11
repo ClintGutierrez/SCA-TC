@@ -175,7 +175,7 @@ export const openapiSpec = {
     '/api/depreciacion/{bienId}': {
       parameters: [idParameter('bienId')],
       get: secured('Obtener depreciacion de un bien', ['Depreciacion']),
-      put: secured('Recalcular desde el ano base sin acumular depreciacion', ['Depreciacion'], {
+      put: secured('Recalcular en linea recta desde el ano de adquisicion', ['Depreciacion'], {
         200: { description: 'Importe recalculado para el ano calendario actual en America/Lima' },
         400: { description: 'Identificador invalido' },
         404: { description: 'Depreciacion no encontrada' },
