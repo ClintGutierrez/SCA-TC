@@ -17,7 +17,7 @@ const GROUPS = [
     { id: 'inventario', icon: 'computer', label: 'Inventario', roles: ['administrador', 'jefatura', 'tecnico'] },
     { id: 'mantenimiento', icon: 'tool', label: 'Mantenimiento', roles: ['administrador', 'jefatura', 'tecnico'] },
     { id: 'bajas', icon: 'archive', label: 'Bajas', roles: ['administrador', 'jefatura', 'auditor'] },
-    { id: 'reportes', icon: 'chart', label: 'Reportes', roles: ['administrador', 'jefatura', 'tecnico'] },
+    { id: 'reportes', icon: 'chart', label: 'Reportes', roles: ['administrador', 'jefatura', 'tecnico', 'auditor'] },
   ] },
   { id: 'administracion', label: 'Administración', items: [
     { id: 'personal', icon: 'person', label: 'Personal', roles: ALL_ROLES },

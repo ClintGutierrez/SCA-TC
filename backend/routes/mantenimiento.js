@@ -1,11 +1,11 @@
 import express from 'express';
 import * as mantenimientoController from '../controllers/mantenimientoController.js';
-import { authenticateToken, requireRole } from '../middleware/auth.js';
+import { authenticate, requireRole } from '../middleware/auth.js';
 
 export const createMantenimientoRouter = (sql) => {
   const router = express.Router();
 
-  router.use(authenticateToken);
+  router.use(authenticate(sql));
 
   router.get('/', (req, res) => mantenimientoController.getMantenimiento(req, res, sql));
   router.get('/bien/:bienId', (req, res) => mantenimientoController.getMantenimientoPorBien(req, res, sql));

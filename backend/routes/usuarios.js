@@ -1,11 +1,11 @@
 import express from 'express';
 import * as usuariosController from '../controllers/usuariosController.js';
-import { authenticateToken, requireRole } from '../middleware/auth.js';
+import { authenticate, requireRole } from '../middleware/auth.js';
 
 export const createUsuariosRouter = (sql) => {
   const router = express.Router();
 
-  router.use(authenticateToken);
+  router.use(authenticate(sql));
 
   router.get('/', requireRole('administrador', 'jefatura', 'auditor'), (req, res) => usuariosController.getUsuarios(req, res, sql));
   router.get('/:id', requireRole('administrador', 'jefatura'), (req, res) => usuariosController.getUsuarioById(req, res, sql));

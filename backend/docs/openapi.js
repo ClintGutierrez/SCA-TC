@@ -8,6 +8,12 @@ const secured = (summary, tags, responses = { 200: { description: 'Operacion exi
   responses,
 });
 
+const reportesResponses = {
+  200: { description: 'Operacion exitosa' },
+  401: { description: 'No autenticado' },
+  403: { description: 'Permisos insuficientes' },
+};
+
 const idParameter = (name = 'id') => ({
   name,
   in: 'path',
@@ -177,16 +183,16 @@ export const openapiSpec = {
       }),
     },
     '/api/reportes/inventario': {
-      get: secured('Generar reporte de inventario', ['Reportes']),
+      get: secured('Generar reporte de inventario (administrador, jefatura, tecnico, auditor)', ['Reportes'], reportesResponses),
     },
     '/api/reportes/depreciacion': {
-      get: secured('Generar reporte de depreciacion', ['Reportes']),
+      get: secured('Generar reporte de depreciacion (administrador, jefatura, tecnico, auditor)', ['Reportes'], reportesResponses),
     },
     '/api/reportes/asignaciones': {
-      get: secured('Generar reporte de asignaciones', ['Reportes']),
+      get: secured('Generar reporte de asignaciones (administrador, jefatura, tecnico, auditor)', ['Reportes'], reportesResponses),
     },
     '/api/reportes/mantenimiento': {
-      get: secured('Generar reporte de mantenimiento', ['Reportes']),
+      get: secured('Generar reporte de mantenimiento (administrador, jefatura, tecnico, auditor)', ['Reportes'], reportesResponses),
     },
   },
   components: {

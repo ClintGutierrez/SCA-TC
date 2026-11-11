@@ -1,7 +1,7 @@
 import express from 'express';
 import multer from 'multer';
 import * as bajasController from '../controllers/bajasController.js';
-import { authenticateToken, requireRole } from '../middleware/auth.js';
+import { authenticate, requireRole } from '../middleware/auth.js';
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -10,7 +10,7 @@ const upload = multer({
 
 export const createBajasRouter = (sql) => {
   const router = express.Router();
-  router.use(authenticateToken);
+  router.use(authenticate(sql));
   router.get('/', requireRole('administrador', 'jefatura', 'auditor'), (req, res) => bajasController.getBajas(req, res, sql));
   router.post(
     '/:bienId',

@@ -1,11 +1,11 @@
 import express from 'express';
 import * as bienesController from '../controllers/bienesController.js';
-import { authenticateToken, requireRole } from '../middleware/auth.js';
+import { authenticate, requireRole } from '../middleware/auth.js';
 
 export const createBienesRouter = (sql) => {
   const router = express.Router();
 
-  router.use(authenticateToken);
+  router.use(authenticate(sql));
 
   router.get('/', (req, res) => bienesController.getBienes(req, res, sql));
   router.get('/:id', (req, res) => bienesController.getBienById(req, res, sql));

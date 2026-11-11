@@ -1,7 +1,7 @@
 import express from 'express';
 import multer from 'multer';
 import rateLimit from 'express-rate-limit';
-import { authenticateToken } from '../middleware/auth.js';
+import { authenticate } from '../middleware/auth.js';
 import { fail, positiveId, textField, validateSolicitud, validateFile, hashAccess, newAccess, solicitudTransition, pedidoTransition } from '../utils/flujoTI.js';
 import { queueNotice, notifyHeads } from '../utils/notificacionesTI.js';
 
@@ -116,7 +116,7 @@ export const createGestionTIRouter = (sql) => {
     sendFile(res,file);
   }));
 
-  router.use(authenticateToken);
+  router.use(authenticate(sql));
   router.use(async (req,res,next) => {
     try {
       const [user] = await sql`SELECT id,nombre,email,rol,es_ti FROM usuarios WHERE id=${req.user.sub} AND estado='activo' AND activo_login=TRUE`;
