@@ -66,13 +66,9 @@ export const validarPasoSolicitudTI = (form, file, step) => {
 };
 
 export const normalizarCodigoTI = (value = '') => value.normalize('NFKC').trim().replace(/[‐‑‒–—−]/g, '-').toUpperCase();
-export const normalizarClaveTI = (value = '') => value.replace(/\s/g, '').toLowerCase();
-
-export const validarConsultaTI = ({ codigo, clave, correo }, recuperar = false) => {
+export const validarConsultaTI = ({ codigo, dni = '' }) => {
   const errors = {};
   if (!/^SOL-\d{4}-\d{6,}$/.test(normalizarCodigoTI(codigo))) errors.codigo = 'Escribe el número completo, por ejemplo SOL-2026-000001.';
-  if (recuperar) {
-    if (!EMAIL.test(String(correo || '').trim())) errors.correo = 'Escribe el correo que registraste en la solicitud.';
-  } else if (!/^[a-f0-9]{48}$/.test(normalizarClaveTI(clave))) errors.clave = 'Pega la clave privada completa de 48 caracteres que aparece en tu constancia.';
+  if (!/^\d{8}$/.test(dni.trim())) errors.dni = 'Escribe los 8 dígitos del DNI de quien registró la solicitud.';
   return errors;
 };

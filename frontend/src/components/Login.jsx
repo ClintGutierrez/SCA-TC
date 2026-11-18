@@ -1,9 +1,9 @@
 import { useState } from 'react';
 
-export default function Login({ onLogin, onOpenSolicitud, loading, error }) {
+export default function Login({ onLogin, forSolicitud, loading, error }) {
   const [formData, setFormData] = useState({
-    email: 'admin@tc.pe',
-    password: 'Admin123!',
+    email: '',
+    password: '',
   });
 
   const handleChange = (event) => {
@@ -66,7 +66,7 @@ export default function Login({ onLogin, onOpenSolicitud, loading, error }) {
             <div>
               <p className="text-sm font-semibold uppercase tracking-[0.28em] text-blue-600">Bienvenido</p>
               <h2 className="mt-3 text-3xl font-semibold tracking-tight">Iniciar sesión</h2>
-              <p className="mt-2 text-sm text-slate-500">Ingresa con una cuenta autorizada para administrar el sistema.</p>
+              <p className="mt-2 text-sm text-slate-500">{forSolicitud ? 'Inicia sesión con tu cuenta para registrar o consultar solicitudes de TI.' : 'Ingresa con tu cuenta para acceder al sistema.'}</p>
             </div>
 
             <div className="mt-8 space-y-5">
@@ -75,6 +75,7 @@ export default function Login({ onLogin, onOpenSolicitud, loading, error }) {
                 <input
                   type="email"
                   name="email"
+                  autoComplete="username"
                   value={formData.email}
                   onChange={handleChange}
                   className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-300 focus:bg-white focus:ring-4 focus:ring-blue-100"
@@ -88,6 +89,7 @@ export default function Login({ onLogin, onOpenSolicitud, loading, error }) {
                 <input
                   type="password"
                   name="password"
+                  autoComplete="current-password"
                   value={formData.password}
                   onChange={handleChange}
                   className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-300 focus:bg-white focus:ring-4 focus:ring-blue-100"
@@ -110,16 +112,6 @@ export default function Login({ onLogin, onOpenSolicitud, loading, error }) {
             >
               {loading ? 'Ingresando...' : 'Acceder al sistema'}
             </button>
-
-            {onOpenSolicitud && (
-              <button
-                type="button"
-                onClick={onOpenSolicitud}
-                className="mt-3 flex w-full items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
-              >
-                Registrar solicitud de TI
-              </button>
-            )}
 
             <div className="mt-6 rounded-3xl bg-slate-50 p-4 text-sm text-slate-600">
               <p className="font-semibold text-slate-900">Acceso controlado</p>

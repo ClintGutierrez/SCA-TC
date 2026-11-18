@@ -23,9 +23,8 @@ export const crearConstanciaTI = async (registro) => {
   write(`Registrada el ${new Date(registro.created_at).toLocaleString('es-PE', { timeZone: 'America/Lima' })} (hora de Lima)`);
   write('Estado al registrar: Recibida');
   write('Datos para consultar tu solicitud', { size: 12, bold: true });
-  write(`Clave privada: ${registro.clave}`, { size: 9 });
-  write('Esta clave inicial es válida por siete días desde el registro. Permite consultar el trámite y sus documentos. Conserva esta constancia en un lugar privado.');
-  write('Abre el formulario de Solicitudes TI y selecciona Consultar solicitud. Ingresa el número de registro y la clave; también puedes solicitar otra clave al correo registrado.');
+  write('Inicia sesión y abre el formulario de Solicitudes TI. Selecciona Consultar solicitud.');
+  write('Ingresa el número de registro y el DNI de quien registró la solicitud.');
   write('Resumen del requerimiento', { size: 12, bold: true });
   for (const text of [
     `Tipo: ${getTipoLabel(data.tipoSolicitud)}`,

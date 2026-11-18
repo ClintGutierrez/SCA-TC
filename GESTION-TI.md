@@ -16,10 +16,10 @@ Los documentos oficiales y los adjuntos de respuestas se almacenan privados en `
 
 ## Operación
 
-1. El solicitante completa el formulario con identificación y documento oficial. Recibe un número único y una clave privada de consulta válida por siete días. La constancia también queda en la cola de correo.
+1. El solicitante inicia sesión y completa el formulario con su identificación y el documento oficial. Recibe un número único de registro. La confirmación con ese número también queda en la cola de correo.
 2. En **Solicitudes TI**, Jefatura asigna una cuenta activa de TI y puede incluir indicaciones. Los técnicos ven únicamente sus solicitudes asignadas; Jefatura y auditoría pueden consultar todas.
 3. El responsable inicia la atención y registra acciones realizadas, comentario y adjuntos. Para devolver, observar o rechazar se exige motivo. La respuesta se consulta en **Seguimiento de solicitud** del formulario.
-4. El solicitante puede solicitar una nueva clave al correo registrado. Esa clave vence a los 30 minutos; el número de registro por sí solo no da acceso a los documentos. La respuesta de recuperación no revela si una solicitud existe.
+4. Para consultar el trámite y descargar sus documentos, se ingresa el número de registro junto con el DNI de quien registró la solicitud. El mismo método funciona para solicitudes anteriores con DNI registrado.
 5. Si hay compra, Jefatura registra un pedido desde el detalle de la solicitud o en **Pedidos y Almacén**. Puede aprobarlo. También se admiten pedidos sin solicitud vinculada.
 6. Una cuenta con rol **Almacén** registra la llegada de un pedido solicitado o aprobado. Jefatura recibe una alerta y puede derivar la recepción. Cualquier cuenta marcada como personal de TI puede recepcionar, aunque no sea la persona de la derivación.
 7. La recepción exige fecha y conformidad. Si no es conforme, exige observaciones. Se rechazan fechas futuras o anteriores a la llegada. La recepción es única y los registros se bloquean dentro de una transacción para resolver intentos simultáneos.
@@ -31,15 +31,17 @@ Los estados de solicitudes son `recibida`, `asignada`, `en_atencion`, `atendida`
 
 Los registros anteriores de `localStorage` permanecen en el navegador y no se importan automáticamente: algunos podían contener solo el nombre del adjunto. Las nuevas bandejas muestran exclusivamente registros persistidos en el servidor.
 
-## Formulario y consulta pública
+## Formulario y seguimiento de solicitudes
+
+El formulario está en **Operaciones → Solicitudes TI**. Desde la bandeja, selecciona **Registrar o consultar solicitud**. Las cuentas de Almacén que no pertenecen a TI entran directamente al formulario desde esa opción del menú. Si se abre `/solicitud` sin una sesión activa, el sistema muestra el inicio de sesión y abre el formulario después de autenticar la cuenta.
 
 El registro se organiza en cuatro pasos: tipo de solicitud, datos personales, requerimiento y revisión final. Cada paso valida sus campos antes de continuar. Desde la revisión se puede editar cualquier sección, y los datos y el archivo elegido se conservan al retroceder o alternar entre registro y consulta. El borrador permanece solo en memoria: recargar o cerrar la página lo descarta.
 
 El documento oficial se puede seleccionar o arrastrar al formulario. La pantalla muestra nombre y tamaño y permite cambiarlo o quitarlo. Los errores de formato, tamaño y campos incompletos aparecen junto al control correspondiente.
 
-Después del registro, la constancia permite copiar el número y la clave, mostrar u ocultar la clave y descargar un PDF con el resumen y los datos de consulta. El PDF contiene la clave privada y debe conservarse de forma privada. Su generación se realiza en el navegador y utiliza la biblioteca PDF existente, cargada al solicitar la descarga.
+Después del registro, la constancia permite copiar el número de registro y descargar un PDF con el resumen y las instrucciones de consulta. El navegador carga la biblioteca PDF al solicitar la descarga.
 
-La consulta muestra el avance por etapas, las observaciones, las respuestas y los documentos descargables. Para facilitar el pegado desde otras aplicaciones, el código se normaliza a mayúsculas y guiones simples, y la clave hexadecimal se normaliza a minúsculas y sin espacios. La recuperación de clave utiliza el mismo mecanismo de correo del backend; no reemplaza la comprobación de acceso. El formulario ofrece preguntas frecuentes sobre el registro y el seguimiento.
+La consulta muestra el avance por etapas, las observaciones, las respuestas y los documentos descargables. El formulario normaliza el número de registro a mayúsculas y guiones simples. El DNI se valida como texto de ocho dígitos para conservar los ceros iniciales. La consulta y las descargas comparten un límite de 30 peticiones por IP cada 15 minutos.
 
 Desde `frontend`, ejecutar `npm test` para verificar campos condicionales, validación de archivos, normalización de credenciales y generación de constancias PDF.
 

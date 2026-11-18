@@ -91,13 +91,6 @@ function App() {
     setShowLanding(true);
   };
 
-  const closeLandingToAccess = () => {
-    if (isSolicitudPathname(window.location.pathname)) {
-      window.history.pushState({}, '', '/');
-    }
-    setShowLanding(false);
-  };
-
   const closeLandingToInbox = () => {
     if (isSolicitudPathname(window.location.pathname)) {
       window.history.pushState({}, '', '/');
@@ -108,6 +101,14 @@ function App() {
 
   const role = currentUser?.rol || 'tecnico';
   const permissions = rolePermissions[role] || rolePermissions.tecnico;
+
+  const handleSidebarNavigation = (view) => {
+    if (view === 'solicitudes_ti' && role === 'almacen' && !currentUser.es_ti) {
+      openLandingPage();
+      return;
+    }
+    setCurrentView(view);
+  };
 
   useEffect(() => {
     const bootstrapAuth = async () => {
@@ -302,7 +303,7 @@ function App() {
     notificaciones_ti: { title:'Notificaciones',description:'Alertas y seguimiento de solicitudes y pedidos' },
     solicitudes_ti: {
       title: 'Solicitudes de TI',
-      description: 'Bandeja de requerimientos recibidos desde el formulario público con sustento oficial',
+      description: 'Bandeja de requerimientos de TI con sustento oficial',
     },
     dashboard: {
       title: 'Dashboard ejecutivo',
@@ -354,16 +355,6 @@ function App() {
 
   const logout = useMemo(() => handleLogout, []);
 
-  if (showLanding) {
-    return (
-      <LandingSolicitudTI
-        currentUser={currentUser}
-        onGoToAccess={closeLandingToAccess}
-        onGoToPanelInbox={closeLandingToInbox}
-      />
-    );
-  }
-
   if (!authReady) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-950 text-white">
@@ -377,7 +368,11 @@ function App() {
   }
 
   if (!currentUser) {
-    return <Login onLogin={handleLogin} onOpenSolicitud={openLandingPage} loading={authLoading} error={authError} />;
+    return <Login onLogin={handleLogin} forSolicitud={showLanding} loading={authLoading} error={authError} />;
+  }
+
+  if (showLanding) {
+    return <LandingSolicitudTI onBackToPanel={closeLandingToInbox} />;
   }
 
   return (
@@ -396,7 +391,7 @@ function App() {
         <Sidebar
           isOpen={sidebarOpen}
           currentView={currentView}
-          onViewChange={setCurrentView}
+          onViewChange={handleSidebarNavigation}
           onCloseSidebar={() => setSidebarOpen(false)}
           currentUser={currentUser}
         />

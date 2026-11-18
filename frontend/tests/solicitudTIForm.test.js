@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { nuevaSolicitudTI, validarPasoSolicitudTI, errorArchivoTI, normalizarClaveTI, normalizarCodigoTI, validarConsultaTI, MAX_ARCHIVO_TI } from '../src/utils/solicitudTIForm.js';
+import { nuevaSolicitudTI, validarPasoSolicitudTI, errorArchivoTI, normalizarCodigoTI, validarConsultaTI, MAX_ARCHIVO_TI } from '../src/utils/solicitudTIForm.js';
 import { crearConstanciaTI } from '../src/utils/constanciaTI.js';
 
 const archivo = { name: 'Memorando.pdf', size: 1200, type: 'application/pdf' };
@@ -43,26 +43,21 @@ test('el adjunto es obligatorio y respeta formato, contenido y límite de 10 MB'
   assert.equal(errorArchivoTI({ ...archivo, size: MAX_ARCHIVO_TI }), '');
 });
 
-test('la consulta admite código pegado con guiones tipográficos y clave hexadecimal con espacios de salto de línea', () => {
-  const clave = 'ab'.repeat(24);
+test('la consulta admite guiones tipográficos y un DNI de ocho dígitos con ceros iniciales', () => {
   assert.equal(normalizarCodigoTI(' sol–2026–000001 '), 'SOL-2026-000001');
-  assert.equal(normalizarClaveTI(` ${clave.toUpperCase().slice(0, 24)}\n${clave.toUpperCase().slice(24)} `), clave);
-  assert.deepEqual(validarConsultaTI({ codigo: 'sol–2026–000001', clave: clave.toUpperCase() }), {});
-  assert.ok(validarConsultaTI({ codigo: '000001', clave: clave.slice(1) }).codigo);
-  assert.ok(validarConsultaTI({ codigo: 'SOL-2026-000001', clave: clave.slice(1) }).clave);
+  assert.deepEqual(validarConsultaTI({ codigo: 'sol–2026–000001', dni: '00000011' }), {});
+  assert.ok(validarConsultaTI({ codigo: '000001', dni: '00000011' }).codigo);
+  for (const dni of ['', '0000011', '000000111', '0000001a']) {
+    assert.ok(validarConsultaTI({ codigo: 'SOL-2026-000001', dni }).dni);
+  }
 });
 
-test('recuperar la clave exige el correo, sin exigir la clave perdida', () => {
-  assert.deepEqual(validarConsultaTI({ codigo: 'SOL-2026-000001', correo: 'prueba@example.com' }, true), {});
-  assert.ok(validarConsultaTI({ codigo: 'SOL-2026-000001', correo: '' }, true).correo);
-});
-
-test('la constancia PDF contiene el número y la clave y pagina requerimientos extensos', async () => {
-  const clave = 'cd'.repeat(24);
-  const pdf = await crearConstanciaTI({ codigo: 'SOL-2026-000001', clave, created_at: '2026-10-29T15:00:00Z', datos: { ...completo(), justificacion: 'Detalle de prueba para verificar el salto de página. '.repeat(90) }, archivo: { nombre: archivo.name } });
+test('la constancia PDF indica cómo consultar con el DNI y pagina requerimientos extensos', async () => {
+  const pdf = await crearConstanciaTI({ codigo: 'SOL-2026-000001', created_at: '2026-10-29T15:00:00Z', datos: { ...completo(), justificacion: 'Detalle de prueba para verificar el salto de página. '.repeat(90) }, archivo: { nombre: archivo.name } });
   const content = pdf.output();
   assert.match(content, /^%PDF-/);
   assert.ok(content.includes('SOL-2026-000001'));
-  assert.ok(content.includes(clave));
+  assert.ok(content.includes('DNI de quien registr'));
+  assert.ok(!content.includes('Clave privada'));
   assert.ok(pdf.getNumberOfPages() > 1);
 });

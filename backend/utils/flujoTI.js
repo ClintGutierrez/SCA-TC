@@ -1,10 +1,6 @@
-import crypto from 'node:crypto';
-
 export const TIPOS_TI = new Set(['nuevo_usuario', 'asignacion_equipo', 'cambio_equipo', 'cambio_ubicacion', 'impresora_escaner', 'otro_servicio']);
 export const EQUIPOS_TI = new Set(['laptop', 'computadora', 'monitor', 'impresora', 'escaner', 'periferico', 'red_telefonia', 'otro']);
 export const fail = (status, message, extra = {}) => { throw Object.assign(new Error(message), { status, extra }); };
-export const hashAccess = (token) => crypto.createHash('sha256').update(String(token)).digest('hex');
-export const newAccess = () => crypto.randomBytes(24).toString('hex');
 export const positiveId = (value) => /^\d+$/.test(String(value)) && Number.isSafeInteger(Number(value)) && Number(value) > 0;
 export const textField = (value, label, max = 300, required = true) => {
   if (value !== undefined && typeof value !== 'string') fail(400, `${label}: valor inválido`);

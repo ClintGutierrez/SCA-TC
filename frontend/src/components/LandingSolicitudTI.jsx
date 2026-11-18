@@ -70,12 +70,10 @@ function CargaDocumento({ file, error, onSelect, onRemove, disabled }) {
 }
 
 function ConstanciaSolicitud({ registro, onConsultar, onNueva }) {
-  const [showKey, setShowKey] = useState(false);
   const [notice, setNotice] = useState('');
   const [error, setError] = useState('');
   const [downloading, setDownloading] = useState(false);
   const codeRef = useRef(null);
-  const keyRef = useRef(null);
   const copy = async (value, label, ref) => {
     try { await navigator.clipboard.writeText(value); setNotice(`${label} copiado.`); }
     catch { ref.current?.focus(); ref.current?.select(); setNotice('El navegador no permitió copiar automáticamente. El dato está seleccionado: cópialo con Ctrl+C o desde el menú de tu dispositivo.'); }
@@ -84,15 +82,14 @@ function ConstanciaSolicitud({ registro, onConsultar, onNueva }) {
     if (downloading) return;
     setDownloading(true); setError('');
     try { const { crearConstanciaTI } = await import('../utils/constanciaTI'); const pdf = await crearConstanciaTI(registro); pdf.save(`Constancia_${registro.codigo}.pdf`); setNotice('Constancia preparada para descargar.'); }
-    catch { setError('No se pudo preparar la constancia. Puedes copiar el número y la clave e intentarlo otra vez.'); }
+    catch { setError('No se pudo preparar la constancia. Puedes copiar el número de registro e intentar la descarga otra vez.'); }
     finally { setDownloading(false); }
   };
-  const expires = new Date(new Date(registro.created_at).getTime() + 7 * 24 * 60 * 60 * 1000);
   return <section className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-8" aria-labelledby="constancia-titulo">
     <div className="mb-5 flex items-start gap-4"><span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-700"><IconoTI name="check" className="h-6 w-6" /></span><div><p className="text-xs font-bold uppercase tracking-wider text-emerald-700">Registro completado</p><h2 id="constancia-titulo" tabIndex={-1} className="outline-none mt-1 text-2xl font-semibold tracking-tight text-slate-950">Tu solicitud fue recibida</h2><p className="mt-2 text-sm leading-6 text-slate-600">Jefatura de TI revisará tu requerimiento y asignará a un responsable. Guarda tu constancia para consultar la respuesta.</p></div></div>
     <div className="grid gap-4 rounded-xl bg-slate-50 p-4 sm:p-5">
       <div><label htmlFor="constancia-codigo" className="text-xs font-semibold uppercase tracking-wider text-slate-500">Número de registro</label><div className="mt-2 flex flex-wrap items-center gap-2"><input ref={codeRef} id="constancia-codigo" readOnly value={registro.codigo} className="min-w-0 flex-1 rounded-lg border border-slate-200 bg-white px-3 py-3 font-mono text-lg font-semibold text-blue-800" /><button type="button" className={botonSecundarioTI} onClick={() => copy(registro.codigo, 'Número de registro', codeRef)}><IconoTI name="copiar" /><span>Copiar número</span></button></div></div>
-      <div><label htmlFor="constancia-clave" className="text-xs font-semibold uppercase tracking-wider text-slate-500">Clave privada de consulta</label><div className="mt-2 flex flex-wrap items-center gap-2"><input ref={keyRef} id="constancia-clave" type={showKey ? 'text' : 'password'} readOnly value={registro.clave} autoComplete="off" className="w-full min-w-0 flex-1 rounded-lg border border-slate-200 bg-white px-3 py-3 font-mono text-sm sm:min-w-48" /><button type="button" className={botonSecundarioTI} aria-pressed={showKey} onClick={() => setShowKey(!showKey)}><IconoTI name="ojo" />{showKey ? 'Ocultar' : 'Mostrar'}<span className="sr-only"> clave privada</span></button><button type="button" className={botonSecundarioTI} onClick={() => copy(registro.clave, 'Clave privada', keyRef)}><IconoTI name="copiar" />Copiar clave</button></div><p className="mt-2 text-xs leading-5 text-slate-600">Válida hasta el {fechaLima(expires)} (hora de Lima). Esta clave permite consultar tu trámite y sus documentos; consérvala de forma privada.</p></div>
+      <p className="text-sm leading-6 text-slate-600">Para hacer seguimiento, usa este número y el DNI de quien registró la solicitud.</p>
     </div>
     <p role="status" aria-live="polite" className="mt-3 min-h-5 text-sm text-emerald-800">{notice}</p>
     {error && <p role="alert" className="mt-2 text-sm text-rose-700">{error}</p>}
@@ -103,7 +100,7 @@ function ConstanciaSolicitud({ registro, onConsultar, onNueva }) {
   </section>;
 }
 
-export default function LandingSolicitudTI({ currentUser, onGoToAccess, onGoToPanelInbox }) {
+export default function LandingSolicitudTI({ onBackToPanel }) {
   const [form, setForm] = useState(nuevaSolicitudTI);
   const [file, setFile] = useState(null);
   const [step, setStep] = useState(0);
@@ -185,13 +182,13 @@ export default function LandingSolicitudTI({ currentUser, onGoToAccess, onGoToPa
   return <div className="min-h-screen bg-slate-50 text-slate-900">
     <header className="border-b border-slate-200 bg-white"><div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-4 py-5 sm:px-6">
       <a href="#inicio-solicitud" className="flex items-center gap-3 rounded-lg focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-100" aria-label="SCA-TC, inicio de solicitudes"><img src="/sca-tc.svg" alt="" className="h-11 w-11" /><span><span className="block text-base font-bold tracking-tight text-slate-950">SCA-TC</span><span className="block text-xs text-slate-500 sm:text-sm">Tribunal Constitucional del Perú</span></span></a>
-      <div className="flex items-center gap-3"><a href="#ayuda-solicitud" className="rounded-lg px-2 py-2 text-sm font-semibold text-slate-600 hover:text-blue-700">Ayuda</a><button type="button" disabled={saving} className={botonSecundarioTI} onClick={currentUser ? onGoToPanelInbox : onGoToAccess}>{currentUser ? 'Ir al panel' : 'Acceso al sistema'}<IconoTI name="flecha" className="h-4 w-4" /></button></div>
+      <div className="flex items-center gap-3"><a href="#ayuda-solicitud" className="rounded-lg px-2 py-2 text-sm font-semibold text-slate-600 hover:text-blue-700">Ayuda</a><button type="button" disabled={saving} className={botonSecundarioTI} onClick={onBackToPanel}><IconoTI name="atras" className="h-4 w-4" />Volver al panel</button></div>
     </div></header>
 
     <main id="inicio-solicitud" className="mx-auto max-w-6xl px-4 pb-12 pt-9 sm:px-6 sm:pt-12">
       <section className="mb-9 grid items-center gap-7 lg:grid-cols-[1.35fr_1fr]" aria-labelledby="landing-titulo">
         <div><p className="text-xs font-bold uppercase tracking-[0.2em] text-blue-700">Mesa de servicios de TI</p><h1 id="landing-titulo" className="mt-3 max-w-xl text-3xl font-semibold leading-tight tracking-tight text-slate-950 sm:text-4xl">Solicitudes y servicios de TI</h1><p className="mt-4 max-w-xl text-base leading-7 text-slate-600">Solicita equipos, cambios de ubicación y servicios de tecnología. Registra tu requerimiento y consulta aquí el avance de su atención.</p></div>
-        <ol className="space-y-4 border-l-2 border-blue-100 pl-5 lg:ml-8" aria-label="Cómo se atiende tu solicitud">{[['01', 'Registra tu solicitud', 'Completa tus datos y adjunta el sustento.'], ['02', 'TI revisa y asigna', 'Un responsable recibe tu requerimiento.'], ['03', 'Consulta la respuesta', 'Usa tu número de registro y clave privada.']].map(([n, title, text]) => <li key={n} className="flex gap-3"><span className="pt-0.5 font-mono text-xs font-semibold text-blue-700">{n}</span><div><p className="text-sm font-semibold text-slate-900">{title}</p><p className="mt-0.5 text-xs leading-5 text-slate-500">{text}</p></div></li>)}</ol>
+        <ol className="space-y-4 border-l-2 border-blue-100 pl-5 lg:ml-8" aria-label="Cómo se atiende tu solicitud">{[['01', 'Registra tu solicitud', 'Completa tus datos y adjunta el sustento.'], ['02', 'TI revisa y asigna', 'Un responsable recibe tu requerimiento.'], ['03', 'Consulta la respuesta', 'Usa el número de registro y el DNI del solicitante.']].map(([n, title, text]) => <li key={n} className="flex gap-3"><span className="pt-0.5 font-mono text-xs font-semibold text-blue-700">{n}</span><div><p className="text-sm font-semibold text-slate-900">{title}</p><p className="mt-0.5 text-xs leading-5 text-slate-500">{text}</p></div></li>)}</ol>
       </section>
 
       <div id="solicitud-panel" className="scroll-mt-5">
@@ -199,7 +196,7 @@ export default function LandingSolicitudTI({ currentUser, onGoToAccess, onGoToPa
           {[['registro', 'Registrar solicitud', 'documento'], ['seguimiento', 'Consultar solicitud', 'buscar']].map(([id, label, icon]) => <button key={id} type="button" disabled={saving} aria-pressed={view === id} aria-controls={`panel-${id}`} className={`flex min-h-11 flex-1 items-center justify-center gap-2 rounded-lg px-3 py-3 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-200 sm:flex-none sm:px-5 ${view === id ? 'bg-white text-blue-800 shadow-sm' : 'text-slate-600 hover:bg-white/60'}`} onClick={() => switchView(id)}><IconoTI name={icon} className="hidden h-4 w-4 sm:block" />{label}</button>)}
         </nav>
 
-        <div id="panel-seguimiento" className={view === 'seguimiento' ? 'block' : 'hidden'}><SeguimientoTI initialCode={registro?.codigo} initialKey={registro?.clave} consultaId={consultaId} /></div>
+        <div id="panel-seguimiento" className={view === 'seguimiento' ? 'block' : 'hidden'}><SeguimientoTI initialCode={registro?.codigo} initialDni={registro?.datos.solicitanteDni} consultaId={consultaId} /></div>
         <div id="panel-registro" className={view === 'registro' ? 'block' : 'hidden'}>
           {registro ? <ConstanciaSolicitud registro={registro} onNueva={fresh} onConsultar={() => { setConsultaId((old) => old + 1); switchView('seguimiento'); }} /> : <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_270px]">
             <section className="min-w-0 overflow-hidden rounded-2xl border border-slate-200 bg-white" aria-labelledby="solicitud-paso">
@@ -237,7 +234,7 @@ export default function LandingSolicitudTI({ currentUser, onGoToAccess, onGoToPa
                     <section className="border-t border-slate-200 pt-6"><h3 className="mb-4 text-base font-semibold">Documento que sustenta la solicitud</h3><div className="mb-5 grid gap-5 sm:grid-cols-2">{field('tipoDocumento', 'Tipo de documento', { as: 'select', children: TIPOS_DOCUMENTO_OFICIAL.map((type) => <option key={type}>{type}</option>) })}{field('numeroDocumento', 'Número o referencia', { placeholder: 'Ej. Memorando N.º 0145-2026' })}</div><CargaDocumento file={file} error={errors.documento} disabled={saving} onSelect={selectFile} onRemove={() => { setFile(null); setErrors((old) => ({ ...old, documento: undefined })); }} /></section>
                   </div>}
 
-                  {step === 3 && <div><ResumenSolicitud form={form} file={file} onEdit={move} disabled={saving} /><p className="mt-5 text-sm leading-6 text-slate-600">Al enviar se generará tu número de registro y una clave privada para el seguimiento. Conserva ambos datos o descarga la constancia.</p></div>}
+                  {step === 3 && <div><ResumenSolicitud form={form} file={file} onEdit={move} disabled={saving} /><p className="mt-5 text-sm leading-6 text-slate-600">Al enviar recibirás un número de registro. Guárdalo o descarga la constancia. Podrás consultar tu solicitud con ese número y el DNI del solicitante.</p></div>}
                 </fieldset>
                 {duplicate && <div role="alert" className="mt-5 rounded-xl border border-amber-300 bg-amber-50 p-4"><h3 className="font-semibold text-amber-950">Ya existe una solicitud similar en curso</h3><p className="mt-2 text-sm leading-6 text-amber-900">Encontramos una solicitud del mismo beneficiario, tipo y equipo. Puedes revisar tus datos o registrar otra si es necesario.</p><div className="mt-4 flex flex-wrap gap-2"><button type="button" className={botonSecundarioTI} onClick={() => setDuplicate(false)}>Volver y revisar</button><button type="button" className={botonPrincipalTI} disabled={saving} onClick={() => send(true)}>Enviar de todas formas</button></div></div>}
                 <div className="mt-7 flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 pt-5"><div>{step > 0 && <button type="button" disabled={saving} className={botonSecundarioTI} onClick={() => move(step - 1)}><IconoTI name="atras" className="h-4 w-4" />Anterior</button>}</div><button type="submit" disabled={saving || duplicate} className={`${botonPrincipalTI} ml-auto`}>{saving ? 'Registrando solicitud…' : step === 3 ? 'Enviar solicitud' : 'Continuar'}{!saving && <IconoTI name="flecha" className="h-4 w-4" />}</button></div>
@@ -251,9 +248,8 @@ export default function LandingSolicitudTI({ currentUser, onGoToAccess, onGoToPa
 
       <section id="ayuda-solicitud" className="mt-12 scroll-mt-6 border-t border-slate-200 pt-8" aria-labelledby="ayuda-titulo"><p className="text-xs font-bold uppercase tracking-wider text-blue-700">Estamos para orientarte</p><h2 id="ayuda-titulo" className="mt-2 text-2xl font-semibold tracking-tight">Preguntas frecuentes</h2><div className="mt-5 grid items-start gap-x-8 sm:grid-cols-2">{[
         ['¿Qué documento debo adjuntar?', 'Un memorando, oficio, informe, formato de solicitud firmado o resolución que sustente tu requerimiento. Se admite un archivo PDF, JPG, PNG o WEBP de hasta 10 MB.'],
-        ['¿Qué pasa después de enviar?', 'Tu solicitud queda Recibida. Jefatura de TI la revisa y asigna a un responsable, quien registra la atención y la respuesta. Puedes consultar el avance con tu número de registro y clave privada.'],
-        ['¿Cómo recupero mi clave?', 'En Consultar solicitud, abre ¿Olvidaste tu clave? e ingresa el número de registro y el correo que usaste al enviar. La nueva clave se envía a ese correo y dura 30 minutos.'],
-        ['¿Cómo guardo mi número y mi clave?', 'Después del envío puedes copiar ambos datos o descargar la constancia PDF. La clave inicial dura siete días. El seguimiento no requiere una cuenta del sistema.'],
+        ['¿Qué pasa después de enviar?', 'Tu solicitud queda Recibida. Jefatura de TI la revisa y asigna a un responsable, quien registra la atención y la respuesta.'],
+        ['¿Qué necesito para consultar mi solicitud?', 'Ingresa el número de registro y el DNI de quien registró la solicitud. Puedes copiar el número al terminar el registro o encontrarlo en la constancia PDF.'],
       ].map(([question, answer]) => <details key={question} className="border-b border-slate-200 py-4"><summary className="cursor-pointer rounded text-sm font-semibold text-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600">{question}</summary><p className="mt-3 text-sm leading-6 text-slate-600">{answer}</p></details>)}</div></section>
     </main>
     <footer className="border-t border-slate-200 bg-white"><div className="mx-auto flex max-w-6xl flex-wrap justify-between gap-3 px-4 py-5 text-xs leading-5 text-slate-500 sm:px-6"><p>SCA-TC · Tribunal Constitucional del Perú</p><p>Registro y seguimiento de requerimientos de TI</p></div></footer>

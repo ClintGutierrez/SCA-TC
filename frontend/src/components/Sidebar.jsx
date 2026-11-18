@@ -9,7 +9,7 @@ const GROUPS = [
     { id: 'notificaciones_ti', icon: 'bell', label: 'Notificaciones', roles: ALL_ROLES, counter: 'unread' },
   ] },
   { id: 'operaciones', label: 'Operaciones', items: [
-    { id: 'solicitudes_ti', icon: 'file', label: 'Solicitudes TI', roles: ['administrador', 'jefatura', 'tecnico', 'auditor'], counter: 'pending' },
+    { id: 'solicitudes_ti', icon: 'file', label: 'Solicitudes TI', roles: ALL_ROLES, counter: 'pending' },
     { id: 'almacen_ti', icon: 'box', label: 'Pedidos y Almacén', roles: ALL_ROLES },
     { id: 'movimientos', icon: 'arrows', label: 'Movimientos', roles: ['administrador', 'jefatura', 'tecnico', 'auditor'] },
   ] },
@@ -114,8 +114,7 @@ export default function Sidebar({ isOpen, onViewChange, currentView, onCloseSide
     };
   }, [isOpen]);
 
-  const groups = GROUPS.map((group) => ({ ...group, items: group.items.filter((item) => item.roles.includes(role)
-    || (item.id === 'solicitudes_ti' && currentUser?.es_ti)) })).filter((group) => group.items.length);
+  const groups = GROUPS.map((group) => ({ ...group, items: group.items.filter((item) => item.roles.includes(role)) })).filter((group) => group.items.length);
   const initials = (currentUser?.nombre || 'Usuario').trim().split(/\s+/).slice(0, 2).map((part) => part[0]).join('');
   const navigate = (id) => { onViewChange(id); onCloseSidebar?.(); };
 

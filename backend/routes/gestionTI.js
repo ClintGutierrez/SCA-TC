@@ -2,11 +2,11 @@ import express from 'express';
 import multer from 'multer';
 import rateLimit from 'express-rate-limit';
 import { authenticate } from '../middleware/auth.js';
-import { fail, positiveId, textField, validateSolicitud, validateFile, hashAccess, newAccess, solicitudTransition, pedidoTransition } from '../utils/flujoTI.js';
+import { fail, positiveId, textField, validateSolicitud, validateFile, solicitudTransition, pedidoTransition } from '../utils/flujoTI.js';
 import { queueNotice, notifyHeads } from '../utils/notificacionesTI.js';
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { files: 3, fileSize: 10 * 1024 * 1024, fields: 8, fieldSize: 32 * 1024 } });
-const publicLimit = () => rateLimit({ windowMs: 15 * 60 * 1000, limit: 30, standardHeaders: 'draft-8', legacyHeaders: false, message: { error: 'Demasiados intentos. Intente nuevamente en 15 minutos.' } });
+const formLimit = () => rateLimit({ windowMs: 15 * 60 * 1000, limit: 30, standardHeaders: 'draft-8', legacyHeaders: false, message: { error: 'Demasiados intentos. Intente nuevamente en 15 minutos.' } });
 const boss = (user) => ['administrador','jefatura'].includes(user.rol);
 const event = async (tx, entity, id, user, action, comment = '', data = {}) => {
   const [row] = await tx`INSERT INTO eventos_ti (entidad,entidad_id,usuario_id,accion,comentario,datos)
@@ -18,25 +18,20 @@ const saveFile = async (tx, file, solicitudId, respuestaId = null) => {
   await tx`INSERT INTO documentos_ti (solicitud_id,respuesta_id,nombre,mime,tamano,contenido)
     VALUES (${solicitudId},${respuestaId},${name},${file.mimetype},${file.buffer.length},${file.buffer})`;
 };
-const issueAccess = async (tx, id, minutes = 30) => {
-  const token = newAccess();
-  await tx`INSERT INTO solicitudes_ti_accesos (solicitud_id,token_hash,expires_at)
-    VALUES (${id},${hashAccess(token)},now()+${minutes}*interval '1 minute')`;
-  return token;
-};
 const lookupAccess = async (sql, body) => {
-  const code = textField(body.codigo, 'Código', 80);
-  const token = textField(body.clave, 'Clave de consulta', 100);
-  const [row] = await sql`SELECT s.* FROM solicitudes_ti s JOIN solicitudes_ti_accesos a ON a.solicitud_id=s.id
-    WHERE s.codigo=${code} AND a.token_hash=${hashAccess(token)} AND a.expires_at > now()`;
-  if (!row) fail(404, 'Código o clave inválidos o vencidos');
+  const code = textField(body?.codigo, 'Número de registro', 80);
+  const dni = textField(body?.dni, 'DNI del solicitante', 8);
+  if (!/^\d{8}$/.test(dni)) fail(400, 'El DNI del solicitante debe tener 8 dígitos.');
+  const [row] = await sql`SELECT id,codigo,estado,created_at FROM solicitudes_ti
+    WHERE codigo=${code} AND datos->>'solicitanteDni'=${dni}`;
+  if (!row) fail(404, 'Revisa el número de registro y el DNI del solicitante.');
   return row;
 };
-const detail = async (sql, row, publicView = false) => {
+const detail = async (sql, row, trackingView = false) => {
   const respuestas = await sql`SELECT r.id,r.acciones,r.comentario,r.created_at,u.nombre AS responsable FROM solicitudes_ti_respuestas r
     JOIN usuarios u ON u.id=r.usuario_id WHERE r.solicitud_id=${row.id} ORDER BY r.id`;
   const documentos = await sql`SELECT id,respuesta_id,nombre,mime,tamano FROM documentos_ti WHERE solicitud_id=${row.id} ORDER BY id`;
-  if (publicView) return { codigo: row.codigo, estado: row.estado, created_at: row.created_at, respuestas, documentos,
+  if (trackingView) return { codigo: row.codigo, estado: row.estado, created_at: row.created_at, respuestas, documentos,
     observaciones: await sql`SELECT accion,comentario,created_at FROM eventos_ti WHERE entidad='solicitud' AND entidad_id=${row.id} AND accion IN ('observar','rechazar') ORDER BY id` };
   const historial = await sql`SELECT e.*,u.nombre AS usuario FROM eventos_ti e LEFT JOIN usuarios u ON u.id=e.usuario_id
     WHERE entidad='solicitud' AND entidad_id=${row.id} ORDER BY e.id`;
@@ -51,7 +46,9 @@ const sendFile = (res, file) => {
 
 export const createGestionTIRouter = (sql) => {
   const router = express.Router();
+  const trackingLimit = formLimit();
   router.use((req, res, next) => { res.set('Cache-Control', 'no-store'); next(); });
+  router.use(authenticate(sql));
   const wrap = (fn) => async (req, res, next) => { try { await fn(req,res); } catch (error) { next(error); } };
   const requireBoss = (req) => { if (!boss(req.tiUser)) fail(403, 'Acción exclusiva de Jefatura'); };
   const canReadSolicitud = async (req, id) => {
@@ -68,7 +65,7 @@ export const createGestionTIRouter = (sql) => {
     return user;
   };
 
-  router.post('/solicitudes', publicLimit(), upload.single('documento'), wrap(async (req,res) => {
+  router.post('/solicitudes', formLimit(), upload.single('documento'), wrap(async (req,res) => {
     let input;
     try { input = JSON.parse(req.body.datos); } catch { fail(400, 'Datos de formulario inválidos'); }
     const data = validateSolicitud(input || {});
@@ -86,37 +83,19 @@ export const createGestionTIRouter = (sql) => {
       await saveFile(tx, req.file, row.id);
       await event(tx,'solicitud',row.id,null,'registrar','Solicitud recibida', { duplicadoConfirmado: duplicates.length > 0 });
       await notifyHeads(tx, { key:`solicitud:${row.id}:recibida`, subject:`Nueva solicitud TI ${code}`, message:`Se recibió ${code}. Tipo: ${data.tipoSolicitud}. Solicitante: ${data.solicitanteNombre}. Revise la bandeja de Solicitudes TI.`, entity:'solicitud', id:row.id });
-      const clave = await issueAccess(tx,row.id,60 * 24 * 7);
-      await queueNotice(tx,{ key:`solicitud:${row.id}:constancia`, email:row.correo, subject:`Registro de solicitud ${code}`, message:`Su solicitud fue recibida. Código: ${code}. Clave de consulta (válida por 7 días): ${clave}. Consulte en la sección Seguimiento del formulario de TI.`, entity:'solicitud',id:row.id });
-      return { ...row, clave };
+      await queueNotice(tx,{ key:`solicitud:${row.id}:constancia`, email:row.correo, subject:`Registro de solicitud ${code}`, message:`Su solicitud fue recibida. Número de registro: ${code}. Inicie sesión en el sistema y consulte el trámite con ese número y el DNI del solicitante en la sección Seguimiento del formulario de TI.`, entity:'solicitud',id:row.id });
+      return row;
     });
     res.status(201).json(record);
   }));
-  router.post('/consulta/acceso', publicLimit(), wrap(async (req,res) => {
-    const code = textField(req.body.codigo, 'Código', 80);
-    const email = textField(req.body.correo, 'Correo', 300).toLowerCase();
-    await sql.begin(async (tx) => {
-      const [row] = await tx`SELECT id FROM solicitudes_ti WHERE codigo=${code} AND correo=${email}`;
-      if (row) {
-        // No generar un correo nuevo por cada clic repetido.
-        const [recent] = await tx`SELECT id FROM solicitudes_ti_accesos WHERE solicitud_id=${row.id} AND created_at > now()-interval '1 minute'`;
-        if (!recent) {
-          const token = await issueAccess(tx,row.id);
-          await queueNotice(tx,{ key:`acceso:${newAccess()}`,email,subject:`Consulta de solicitud ${code}`,message:`Su clave de consulta es ${token}. Válida durante 30 minutos.`,entity:'solicitud',id:row.id });
-        }
-      }
-    });
-    res.json({ message:'Si el código y correo coinciden, recibirá una clave de consulta por correo.' });
-  }));
-  router.post('/consulta', publicLimit(), wrap(async (req,res) => res.json(await detail(sql, await lookupAccess(sql,req.body),true))));
-  router.post('/consulta/documentos/:id', publicLimit(), wrap(async (req,res) => {
+  router.post('/consulta', trackingLimit, wrap(async (req,res) => res.json(await detail(sql, await lookupAccess(sql,req.body),true))));
+  router.post('/consulta/documentos/:id', trackingLimit, wrap(async (req,res) => {
     if (!positiveId(req.params.id)) fail(400,'Identificador inválido');
     const row = await lookupAccess(sql,req.body);
     const [file] = await sql`SELECT nombre,mime,contenido FROM documentos_ti WHERE id=${req.params.id} AND solicitud_id=${row.id}`;
     sendFile(res,file);
   }));
 
-  router.use(authenticate(sql));
   router.use(async (req,res,next) => {
     try {
       const [user] = await sql`SELECT id,nombre,email,rol,es_ti FROM usuarios WHERE id=${req.user.sub} AND estado='activo' AND activo_login=TRUE`;

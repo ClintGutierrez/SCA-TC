@@ -159,16 +159,13 @@ export const getAuditoria = (filtros = {}) => apiClient.get('/auditoria', { para
 
 export default apiClient;
 
-// Las consultas públicas no intentan renovar una sesión del panel.
-const publicTI = axios.create({ baseURL: `${API_URL}/api/gestion-ti` });
 const tiChanged = (response) => { window.dispatchEvent(new Event('sca-ti-updated')); return response; };
 export const registrarSolicitudTI = (datos, documento) => {
   const form = new FormData(); form.append('datos', JSON.stringify(datos)); form.append('documento', documento);
-  return publicTI.post('/solicitudes', form).then(tiChanged);
+  return apiClient.post('/gestion-ti/solicitudes', form).then(tiChanged);
 };
-export const solicitarAccesoTI = (datos) => publicTI.post('/consulta/acceso', datos);
-export const consultarSolicitudTI = (datos) => publicTI.post('/consulta', datos);
-export const descargarDocumentoPublicoTI = (id, datos) => publicTI.post(`/consulta/documentos/${id}`, datos, { responseType: 'blob' });
+export const consultarSolicitudTI = (datos) => apiClient.post('/gestion-ti/consulta', datos);
+export const descargarDocumentoSeguimientoTI = (id, datos) => apiClient.post(`/gestion-ti/consulta/documentos/${id}`, datos, { responseType: 'blob' });
 export const getSolicitudesTI = () => apiClient.get('/gestion-ti/solicitudes');
 export const getSolicitudTI = (id) => apiClient.get(`/gestion-ti/solicitudes/${id}`);
 export const getPersonalTI = () => apiClient.get('/gestion-ti/personal-ti');
