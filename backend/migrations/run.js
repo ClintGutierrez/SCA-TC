@@ -32,6 +32,10 @@ async function runMigrations() {
 
     await sql.begin(async (transaction) => {
       await transaction.unsafe(schema);
+      const fotosBienesPath = path.join(path.dirname(fileURLToPath(import.meta.url)), '20261117_fotos_bienes.sql');
+      await transaction.unsafe(fs.readFileSync(fotosBienesPath, 'utf8'));
+      const registrosBienesPath = path.join(path.dirname(fileURLToPath(import.meta.url)), '20261119_registros_bienes.sql');
+      await transaction.unsafe(fs.readFileSync(registrosBienesPath, 'utf8'));
       const assignmentMigrationPath = path.join(path.dirname(fileURLToPath(import.meta.url)), '20261013_asignaciones.sql');
       const assignmentMigration = fs.readFileSync(assignmentMigrationPath, 'utf8').replace(/^\uFEFF/, '');
       await transaction.unsafe(assignmentMigration);

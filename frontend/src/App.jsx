@@ -71,6 +71,7 @@ function App() {
   const [personal, setPersonal] = useState([]);
   const [loading, setLoading] = useState(false);
   const [mostrarRegistro, setMostrarRegistro] = useState(false);
+  const [confirmacionRegistro, setConfirmacionRegistro] = useState(null);
   const [showLanding, setShowLanding] = useState(() => isSolicitudPathname(window.location.pathname));
   const [pedidoSolicitud,setPedidoSolicitud] = useState(null);
   const [focusSolicitud,setFocusSolicitud] = useState(null);
@@ -174,6 +175,13 @@ function App() {
     setBienes(response.data);
   }, []);
 
+  const confirmarRegistro = (bien, recuperado) => {
+    setBienes((actuales) => [bien, ...actuales.filter((actual) => actual.id !== bien.id)]);
+    setConfirmacionRegistro({ bien, recuperado });
+    setMostrarRegistro(false);
+    fetchBienes().catch((error) => console.error('Error al actualizar inventario:', error));
+  };
+
   const fetchUsuarios = async () => {
     const response = await api.getUsuarios();
     setUsuarios(response.data);
@@ -206,6 +214,7 @@ function App() {
     api.clearAuthToken();
     setCurrentUser(null);
     setBienes([]);
+    setConfirmacionRegistro(null);
     setUsuarios([]);
     setPersonal([]);
     setFocusSolicitud(null);
@@ -251,14 +260,16 @@ function App() {
             bienes={bienes}
             onRefresh={fetchBienes}
             canCreate={permissions.canCreateAssets}
-            onCreate={() => setMostrarRegistro(true)}
+            onCreate={() => { setConfirmacionRegistro(null); setMostrarRegistro(true); }}
             registrationOpen={mostrarRegistro}
+            confirmacionRegistro={confirmacionRegistro}
+            onCerrarConfirmacion={() => setConfirmacionRegistro(null)}
             canEdit={permissions.canEditAssets}
             canDelete={permissions.canDeleteAssets}
           >
             {permissions.canCreateAssets && mostrarRegistro && (
               <RegistrarBien
-                onSaved={() => { fetchBienes(); setMostrarRegistro(false); }}
+                onSaved={confirmarRegistro}
                 onCancel={() => setMostrarRegistro(false)}
               />
             )}

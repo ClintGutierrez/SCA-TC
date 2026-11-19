@@ -1,5 +1,6 @@
 import Select from './Select';
-import { cloneElement, useId, useRef, useState } from 'react';
+import { CampoFotoBien } from './FotoBien';
+import { cloneElement, useEffect, useId, useRef, useState } from 'react';
 import * as api from '../services/api';
 import { TIPOS, getTipo, GUIA_ESCANER, sugerirClasificacionEscaner } from '../utils/camposPorTipo';
 import { calcularGarantia } from '../utils/garantia';
@@ -118,10 +119,25 @@ function RegisterIcon({ name }) {
 
 export default function RegistrarBien({ onSaved, onCancel }) {
   const formRef = useRef(null);
+  const mensajeRef = useRef(null);
+  const focoPendiente = useRef(false);
+  const intentoRef = useRef(null);
   const [formData, setFormData] = useState(FORM_VACIO);
+  const [foto, setFoto] = useState(null);
   const [errores, setErrores] = useState({});
   const [mensaje, setMensaje] = useState(null);
   const [loading, setLoading] = useState(false);
+  const cambiarFoto = (archivo) => { setFoto(archivo); setErrores((prev) => ({ ...prev, foto: undefined })); };
+
+  useEffect(() => {
+    if (loading || !focoPendiente.current) return;
+    focoPendiente.current = false;
+    const campo = formRef.current?.querySelector('[aria-invalid="true"]:not([aria-hidden="true"])');
+    const destino = campo || mensajeRef.current;
+    destino?.focus({ preventScroll: true });
+    const visible = campo?.type === 'file' ? campo.closest('label') : destino;
+    visible?.scrollIntoView({ block: 'center', behavior: 'instant' });
+  }, [loading, errores, mensaje]);
 
   const tipoActual = getTipo(formData.tipo);
   const garantia = calcularGarantia(formData.fechaCompra, formData.garantiaAnios);
@@ -159,7 +175,7 @@ export default function RegistrarBien({ onSaved, onCancel }) {
   const handleBlur = (e) => {
     const { name, dataset } = e.target;
     const clave = dataset.detalle ? `detalles.${name}` : name;
-    setErrores((prev) => ({ ...prev, [clave]: validar(formData)[clave] }));
+    setErrores((prev) => ({ ...prev, [clave]: prev[clave] || validar(formData)[clave] }));
   };
 
   const clase = (clave) =>
@@ -192,36 +208,49 @@ export default function RegistrarBien({ onSaved, onCancel }) {
     setMensaje(null);
 
     const erroresLocales = validar(formData);
+    if (errores.foto) erroresLocales.foto = errores.foto;
     setErrores(erroresLocales);
     if (Object.keys(erroresLocales).length > 0) {
-      setMensaje({ tipo: 'error', texto: 'Complete correctamente los campos marcados en rojo' });
-      requestAnimationFrame(() => formRef.current?.querySelector('[aria-invalid="true"]')?.focus());
+      focoPendiente.current = true;
+      setMensaje('Revisa los campos señalados.');
       return;
     }
 
+    const datos = {
+      ...formData,
+      direccionMac: tipoActual?.usaMac ? formData.direccionMac : '',
+      valor: Number(formData.valor),
+      garantiaAnios: Number(formData.garantiaAnios),
+    };
+    const contenido = JSON.stringify(datos);
+    if (intentoRef.current?.contenido !== contenido || intentoRef.current.foto !== foto) {
+      const registroId = Array.from(crypto.getRandomValues(new Uint8Array(16)), (byte) => byte.toString(16).padStart(2, '0')).join('');
+      intentoRef.current = { registroId, contenido, foto };
+    }
+    const { registroId } = intentoRef.current;
+
     setLoading(true);
     try {
-      const { data } = await api.createBien({
-        ...formData,
-        direccionMac: tipoActual?.usaMac ? formData.direccionMac : '',
-        valor: formData.valor === '' ? null : Number(formData.valor),
-        garantiaAnios: Number(formData.garantiaAnios),
-      });
-      setFormData(FORM_VACIO);
-      setErrores({});
-      setMensaje({
-        tipo: 'exito',
-        texto: `Bien registrado correctamente (${data.codigo_patrimonial})`,
-      });
-      onSaved();
+      const { data, status } = await api.createBien({ ...datos, registroId }, foto);
+      onSaved(data, status === 200);
     } catch (error) {
-      const respuesta = error.response?.data;
-      if (respuesta?.campos) setErrores(respuesta.campos);
-      else if (respuesta?.campo) setErrores({ [respuesta.campo]: respuesta.error });
-      setMensaje({
-        tipo: 'error',
-        texto: respuesta?.error || 'No se pudo registrar el bien. Intente nuevamente.',
-      });
+      if (!error.response || error.response.status >= 500) {
+        try {
+          const { data } = await api.getRegistroBien(registroId);
+          onSaved(data, true);
+          return;
+        } catch (consulta) {
+          setMensaje(consulta.response?.status === 410
+            ? consulta.response.data.error
+            : 'No se pudo confirmar si el bien se guardó. Revisa la conexión y vuelve a pulsar Registrar bien.');
+        }
+      } else {
+        const respuesta = error.response.data;
+        if (respuesta?.campos) setErrores(respuesta.campos);
+        else if (respuesta?.campo) setErrores({ [respuesta.campo]: respuesta.error });
+        else setMensaje(respuesta?.error || 'No se pudo registrar el bien. Inténtalo nuevamente.');
+      }
+      focoPendiente.current = true;
     } finally {
       setLoading(false);
     }
@@ -233,9 +262,7 @@ export default function RegistrarBien({ onSaved, onCancel }) {
       <header className="inventory-editor-header">
         <span className="inventory-editor-emblem"><RegisterIcon name="box" /></span>
         <div className="inventory-editor-title">
-          <span className="inventory-editor-eyebrow">INVENTARIO / NUEVO BIEN</span>
           <h3 id="register-asset-title">Registrar bien informático</h3>
-          <p>Completa los datos del equipo para incorporarlo al inventario.</p>
         </div>
         <button type="button" className="inventory-editor-close" onClick={onCancel} disabled={loading} aria-label="Cerrar registro"><RegisterIcon name="close" /></button>
       </header>
@@ -245,14 +272,12 @@ export default function RegistrarBien({ onSaved, onCancel }) {
 
       {mensaje && (
         <div
-          role={mensaje.tipo === 'exito' ? 'status' : 'alert'}
-          className={`mb-4 rounded-lg border px-4 py-3 text-sm font-medium ${
-            mensaje.tipo === 'exito'
-              ? 'border-green-200 bg-green-50 text-green-700'
-              : 'border-red-200 bg-red-50 text-red-700'
-          }`}
+          ref={mensajeRef}
+          tabIndex={-1}
+          role="alert"
+          className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700"
         >
-          {mensaje.tipo === 'exito' ? '✓ ' : '✕ '}{mensaje.texto}
+          {mensaje}
         </div>
       )}
 
@@ -295,6 +320,8 @@ export default function RegistrarBien({ onSaved, onCancel }) {
           )}
         </div>
 
+        <CampoFotoBien archivo={foto} onArchivo={cambiarFoto} onQuitar={() => cambiarFoto(null)}
+          onError={(error) => setErrores((prev) => ({ ...prev, foto: error }))} error={errores.foto} disabled={loading} />
         </section>
 
         <section className="inventory-editor-section" aria-labelledby="register-purchase-title">

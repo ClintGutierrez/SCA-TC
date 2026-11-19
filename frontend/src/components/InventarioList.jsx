@@ -1,4 +1,5 @@
 import Select from './Select';
+import { CampoFotoBien, VistaFotoBien } from './FotoBien';
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import * as api from '../services/api';
@@ -196,14 +197,6 @@ function validateField(name, value) {
   if (name === 'direccionMac' && value && !/^([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}$/.test(value)) {
     errors[name] = 'Formato invalido. Usa: AA:BB:CC:DD:EE:FF';
   }
-  if (name === 'imagenUrl' && value) {
-    try {
-      const url = new URL(value);
-      if (!['http:', 'https:'].includes(url.protocol)) throw new Error('Invalid protocol');
-    } catch {
-      errors[name] = 'URL invalida';
-    }
-  }
   if (name === 'costo' && value && Number(value) < 0) {
     errors[name] = 'El costo no puede ser negativo';
   }
@@ -302,9 +295,11 @@ function specificationRows(specifications) {
     ]);
 }
 
-export default function InventarioList({ bienes, onRefresh, canCreate, canEdit, canDelete, onCreate, registrationOpen = false, children }) {
+export default function InventarioList({ bienes, onRefresh, canCreate, canEdit, canDelete, onCreate, registrationOpen = false,
+  confirmacionRegistro, onCerrarConfirmacion, children }) {
   const editorRef = useRef(null);
   const closeEditorRef = useRef(null);
+  const confirmacionRef = useRef(null);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [tipoOriginal, setTipoOriginal] = useState('');
@@ -314,6 +309,11 @@ export default function InventarioList({ bienes, onRefresh, canCreate, canEdit, 
   const [history, setHistory] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [specsBien, setSpecsBien] = useState(null);
+  useEffect(() => {
+    if (!confirmacionRegistro || registrationOpen) return;
+    confirmacionRef.current?.focus({ preventScroll: true });
+    confirmacionRef.current?.scrollIntoView({ block: 'center', behavior: 'instant' });
+  }, [confirmacionRegistro, registrationOpen]);
   const [filtroTipo, setFiltroTipo] = useState('');
   const [filtroBusqueda, setFiltroBusqueda] = useState('');
   const [filtroCodigo, setFiltroCodigo] = useState('');
@@ -336,6 +336,8 @@ export default function InventarioList({ bienes, onRefresh, canCreate, canEdit, 
   const [pageSize, setPageSize] = useState(25);
   const [pagination, setPagination] = useState({ page: 1, filters: null });
   const [formErrors, setFormErrors] = useState({});
+  const [fotoEditor, setFotoEditor] = useState({ archivo: null, imagen: null, quitar: false });
+  const errorFoto = (error) => setFormErrors((prev) => ({ ...prev, foto: error }));
   const [formData, setFormData] = useState({
     nombre: '',
     descripcion: '',
@@ -348,7 +350,6 @@ export default function InventarioList({ bienes, onRefresh, canCreate, canEdit, 
     usuarioAsignado: '',
     ubicacion: '',
     especificaciones: {},
-    imagenUrl: '',
     codigoPatrimonial: '',
     direccionMac: '',
     ordenCompra: '',
@@ -395,12 +396,12 @@ export default function InventarioList({ bienes, onRefresh, canCreate, canEdit, 
       usuarioAsignado: '',
       ubicacion: '',
       especificaciones: {},
-      imagenUrl: '',
       codigoPatrimonial: '',
       direccionMac: '',
       ordenCompra: '',
     });
     setFormErrors({});
+    setFotoEditor({ archivo: null, imagen: null, quitar: false });
     setEditingId(null);
     setTipoOriginal('');
     setShowForm(false);
@@ -444,11 +445,12 @@ export default function InventarioList({ bienes, onRefresh, canCreate, canEdit, 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (loading) return;
-    const fieldsToValidate = ['nombre', 'tipo', 'fechaAdquisicion', 'costo', 'direccionMac', 'imagenUrl', 'numeroSerie'];
+    const fieldsToValidate = ['nombre', 'tipo', 'fechaAdquisicion', 'costo', 'direccionMac', 'numeroSerie'];
     const errors = fieldsToValidate.reduce((allErrors, name) => ({
       ...allErrors,
       ...validateField(name, formData[name]),
     }), {});
+    if (formErrors.foto) errors.foto = formErrors.foto;
     setFormErrors(errors);
     if (Object.keys(errors).length > 0) {
       requestAnimationFrame(() => editorRef.current?.querySelector('[aria-invalid="true"]')?.focus());
@@ -458,10 +460,11 @@ export default function InventarioList({ bienes, onRefresh, canCreate, canEdit, 
     setLoading(true);
     try {
       if (editingId) {
-        const response = await api.updateBien(editingId, formData);
+        const data = fotoEditor.quitar ? { ...formData, imagenUrl: null } : formData;
+        const response = await api.updateBien(editingId, data, fotoEditor.archivo);
         setSuccessMessage(response.data.message);
       } else {
-        await api.createBien(formData);
+        await api.createBien(formData, fotoEditor.archivo);
       }
       resetForm();
       onRefresh();
@@ -498,12 +501,12 @@ export default function InventarioList({ bienes, onRefresh, canCreate, canEdit, 
       usuarioAsignado: bien.usuario_asignado,
       ubicacion: bien.ubicacion,
       especificaciones,
-      imagenUrl: bien.imagen_url || '',
       codigoPatrimonial: bien.codigo_patrimonial || '',
       direccionMac: bien.direccion_mac || '',
       ordenCompra: bien.orden_compra || '',
     });
     setFormErrors({});
+    setFotoEditor({ archivo: null, imagen: bien.imagen_url, quitar: false });
     setTipoOriginal(bien.tipo || '');
     setEditingId(bien.id);
     setShowForm(true);
@@ -612,6 +615,21 @@ export default function InventarioList({ bienes, onRefresh, canCreate, canEdit, 
       </header>
 
       {children}
+
+      {confirmacionRegistro && !registrationOpen && (
+        <div ref={confirmacionRef} tabIndex={-1} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-900">
+          <p role="status" className="font-medium">
+            {confirmacionRegistro.recuperado ? 'Se confirmó el guardado del bien' : 'Bien registrado correctamente'}
+            {` (${confirmacionRegistro.bien.codigo_patrimonial}).`}
+          </p>
+          <div className="flex flex-wrap items-center gap-2">
+            <button type="button" className="min-h-10 rounded-lg px-3 font-semibold underline underline-offset-4 hover:bg-green-100"
+              onClick={() => setSpecsBien(confirmacionRegistro.bien)}>Ver ficha</button>
+            <button type="button" className="inline-flex min-h-10 min-w-10 items-center justify-center rounded-lg hover:bg-green-100"
+              onClick={onCerrarConfirmacion} aria-label="Cerrar confirmación"><Icon name="close" /></button>
+          </div>
+        </div>
+      )}
 
       {/* Formulario */}
       {successMessage && (
@@ -871,21 +889,17 @@ export default function InventarioList({ bienes, onRefresh, canCreate, canEdit, 
                   />
                   {formErrors.direccionMac && <p id="asset-direccionMac-error" role="alert" className="mt-1 text-xs text-red-600">{formErrors.direccionMac}</p>}
                 </div>
-                <div>
-                  <label htmlFor="asset-imagenUrl" className="mb-2 block text-sm font-medium text-slate-700">Imagen (URL)</label>
-                  <input
-                    type="url"
-                    id="asset-imagenUrl" name="imagenUrl"
-                  aria-invalid={Boolean(formErrors.imagenUrl)}
-                  aria-describedby={formErrors.imagenUrl ? 'asset-imagenUrl-error' : undefined}
-                    placeholder="https://..."
-                    value={formData.imagenUrl ?? ''}
-                    onChange={handleInputChange}
-                    onBlur={handleFieldBlur}
-                    className={fieldClass(Boolean(formErrors.imagenUrl))}
-                  />
-                  {formErrors.imagenUrl && <p id="asset-imagenUrl-error" role="alert" className="mt-1 text-xs text-red-600">{formErrors.imagenUrl}</p>}
-                </div>
+              </div>
+              <div className="mt-4">
+                <CampoFotoBien
+                  archivo={fotoEditor.archivo} imagen={fotoEditor.quitar ? null : fotoEditor.imagen}
+                  onArchivo={(archivo) => { setFotoEditor((prev) => ({ ...prev, archivo })); errorFoto(null); }}
+                  onQuitar={() => {
+                    setFotoEditor((prev) => ({ ...prev, quitar: prev.quitar || !prev.archivo, archivo: null }));
+                    errorFoto(null);
+                  }}
+                  onError={errorFoto} error={formErrors.foto} disabled={loading}
+                />
               </div>
             </section>
                 </fieldset>
@@ -1070,11 +1084,8 @@ export default function InventarioList({ bienes, onRefresh, canCreate, canEdit, 
             <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pr-1">
             <div className="mb-5 grid grid-cols-1 gap-5 rounded-lg border border-slate-200 p-4 sm:grid-cols-[10rem_1fr]">
               <div className="flex h-36 items-center justify-center overflow-hidden rounded-lg bg-slate-100">
-                {specsBien.imagen_url ? (
-                  <img src={specsBien.imagen_url} alt={`Imagen de ${specsBien.nombre}`} className="h-full w-full object-cover" />
-                ) : (
-                  <Icon name="camera" className="h-10 w-10 text-slate-400" />
-                )}
+                <VistaFotoBien imagen={specsBien.imagen_url} alt={`Imagen de ${specsBien.nombre}`} className="h-full w-full object-contain"
+                  fallback={<Icon name="camera" className="h-10 w-10 text-slate-400" />} />
               </div>
               <div>
                 <h3 className="text-lg font-semibold text-slate-900">{specsBien.nombre}</h3>
@@ -1142,9 +1153,8 @@ export default function InventarioList({ bienes, onRefresh, canCreate, canEdit, 
                         <Icon name="calendar" className="h-4 w-4 text-slate-500" />
                         <span>{new Date(version.created_at).toLocaleString('es-PE')} · {version.modificado_por_nombre || 'Usuario no disponible'}</span>
                       </div>
-                      {previous.imagen_url && (
-                        <img src={previous.imagen_url} alt={`Imagen histórica de ${previous.nombre || historyBien.nombre}`} className="my-3 h-24 w-36 rounded-md border border-slate-200 object-cover" />
-                      )}
+                      <VistaFotoBien imagen={previous.imagen_url} alt={`Imagen histórica de ${previous.nombre || historyBien.nombre}`}
+                        className="my-3 h-24 w-36 rounded-md border border-slate-200 object-contain" />
                       <div className="mt-4 space-y-4">
                         <DetailSection title="Datos Generales" rows={[
                           ['Nombre', previous.nombre],

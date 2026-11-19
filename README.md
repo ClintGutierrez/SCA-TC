@@ -69,7 +69,7 @@ proyecto TPG/
 ## 📦 Instalación
 
 ### Requisitos Previos
-- Node.js (v16 o superior)
+- Node.js 18.17+ en la rama 18, 20.3+ en la rama 20 o 21 en adelante. Mantén habilitadas las dependencias opcionales de npm para instalar el decodificador de fotos.
 - npm o yarn
 - PostgreSQL (v12 o superior)
 

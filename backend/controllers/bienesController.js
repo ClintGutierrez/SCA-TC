@@ -1,3 +1,4 @@
+import { createHash, randomUUID } from 'node:crypto';
 import { responderError } from '../utils/errores.js';
 import { anoLima, calcularDepreciacion } from '../utils/depreciacion.js';
 
@@ -180,8 +181,61 @@ export const getBienById = async (req, res, sql) => {
 };
 
 // CU-03 Registrar Bien Informático
+const guardarFotoBien = (sql, fotoId, bienId, foto) => sql`
+  INSERT INTO fotos_bienes (id, bien_id, mime, contenido)
+  VALUES (${fotoId}, ${bienId}, ${foto.mimetype}, ${foto.buffer})
+`;
+
+export const getFotoBien = async (req, res, sql) => {
+  const { fotoId } = req.params;
+  if (!/^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/i.test(fotoId)) {
+    return res.status(404).json({ error: 'Foto no encontrada' });
+  }
+  try {
+    const [foto] = await sql`SELECT mime, contenido FROM fotos_bienes WHERE id = ${fotoId}`;
+    if (!foto) return res.status(404).json({ error: 'Foto no encontrada' });
+    res.set({ 'Content-Type': foto.mime, 'Cache-Control': 'private, no-store', 'X-Content-Type-Options': 'nosniff' });
+    return res.send(foto.contenido);
+  } catch (error) {
+    return responderError(res, error, 'bienes.getFotoBien');
+  }
+};
+
+const registroIdValido = (id) => typeof id === 'string' && /^[a-f0-9]{32}$/.test(id);
+
+const buscarRegistroBien = async (sql, usuarioId, registroId) => {
+  const [registro] = await sql`
+    SELECT b.*, r.huella FROM registros_bienes r
+    LEFT JOIN bienes_informaticos b ON b.id = r.bien_id
+    WHERE r.usuario_id = ${usuarioId} AND r.registro_id = ${registroId}
+  `;
+  if (!registro) return null;
+  const { huella, ...bien } = registro;
+  return { huella, bien: bien.id ? bien : null };
+};
+
+const mensajeRegistroEliminado = 'Este registro se guardó, pero el bien ya fue eliminado del inventario.';
+
+export const getRegistroBien = async (req, res, sql) => {
+  const { registroId } = req.params;
+  res.set('Cache-Control', 'no-store');
+  if (!registroIdValido(registroId)) return res.status(400).json({ error: 'Identificador de registro inválido' });
+  try {
+    const registro = await buscarRegistroBien(sql, req.user.sub, registroId);
+    if (!registro) return res.status(404).json({ error: 'El registro aún no se ha confirmado' });
+    if (!registro.bien) return res.status(410).json({ error: mensajeRegistroEliminado });
+    return res.json(registro.bien);
+  } catch (error) {
+    return responderError(res, error, 'bienes.getRegistroBien');
+  }
+};
+
 export const createBien = async (req, res, sql) => {
   const body = req.body || {};
+  const { registroId } = body;
+  if (registroId !== undefined && !registroIdValido(registroId)) {
+    return res.status(400).json({ error: 'Identificador de registro inválido' });
+  }
   const codigoPatrimonial = limpiar(body.codigoPatrimonial);
   const numeroSerie = limpiar(body.numeroSerie);
   const tipo = limpiar(body.tipo);
@@ -232,25 +286,46 @@ export const createBien = async (req, res, sql) => {
 
   const direccionMac = normalizarMac(macIngresada);
   const nombre = `${tipo} ${marca} ${modelo}`;
+  const fotoId = req.file ? randomUUID() : null;
+  const huella = registroId ? createHash('sha256')
+    .update(JSON.stringify({ codigoPatrimonial, numeroSerie, tipo, marca, modelo, ubicacion, descripcion, ordenCompra,
+      direccionMac, valor, fechaCompra, garantiaAnios, detalles, mimeFoto: req.file?.mimetype || null }))
+    .update(req.file?.buffer ?? '')
+    .digest('hex') : null;
   try {
-    const bien = await sql.begin(async (tx) => {
+    const resultado = await sql.begin(async (tx) => {
+      if (registroId) {
+        // Dos envíos del mismo intento esperan la misma transacción de alta.
+        await tx`SELECT pg_advisory_xact_lock(hashtextextended(${`alta-bien:${req.user.sub}:${registroId}`}, 0))`;
+        const anterior = await buscarRegistroBien(tx, req.user.sub, registroId);
+        if (anterior) {
+          if (anterior.huella !== huella) return { status: 409, error: 'Este intento de registro corresponde a otros datos' };
+          if (!anterior.bien) return { status: 410, error: mensajeRegistroEliminado };
+          return { status: 200, bien: anterior.bien };
+        }
+      }
       await setAuditUser(tx, req.user);
       const [nuevo] = await tx`
         INSERT INTO bienes_informaticos
           (codigo_patrimonial, numero_serie, nombre, descripcion, tipo, marca, modelo,
            direccion_mac, orden_compra, especificaciones, detalles, fecha_adquisicion, garantia_anios,
-           costo, estado, ubicacion)
+           costo, estado, ubicacion, imagen_url)
         VALUES
           (${codigoPatrimonial}, ${numeroSerie}, ${nombre}, ${descripcion}, ${tipo}, ${marca}, ${modelo},
            ${direccionMac}, ${ordenCompra}, ${tx.json({})}, ${tx.json(detalles)}, ${fechaCompra}, ${garantiaAnios},
-           ${valor}, 'activo', ${ubicacion})
+           ${valor}, 'activo', ${ubicacion}, ${fotoId ? `/api/bienes/fotos/${fotoId}` : null})
         RETURNING *
       `;
 
-      return nuevo;
+      if (fotoId) await guardarFotoBien(tx, fotoId, nuevo.id, req.file);
+      if (registroId) await tx`
+        INSERT INTO registros_bienes (usuario_id, registro_id, bien_id, huella)
+        VALUES (${req.user.sub}, ${registroId}, ${nuevo.id}, ${huella})
+      `;
+      return { status: 201, bien: nuevo };
     });
 
-    res.status(201).json(bien);
+    res.status(resultado.status).json(resultado.bien || { error: resultado.error });
   } catch (error) {
     if (error.code === '23505') {
       const esCodigo = String(error.constraint_name || '').includes('codigo');
@@ -361,6 +436,12 @@ export const updateBien = async (req, res, sql) => {
       }
 
       if (Object.keys(campos).length) return { status: 400, error: 'Datos incompletos o inválidos', campos };
+
+      if (req.file) {
+        const fotoId = randomUUID();
+        await guardarFotoBien(transaction, fotoId, previous.id, req.file);
+        values.imagenUrl = `/api/bienes/fotos/${fotoId}`;
+      }
 
       const anoNuevo = anioDe(values.fechaAdquisicion);
       if (sent('fechaAdquisicion') && anoNuevo !== anioDe(previous.fecha_adquisicion)) {

@@ -119,8 +119,17 @@ export const saveConfiguracion = (data) => apiClient.put('/configuracion', data)
 // Bienes
 export const getBienes = () => apiClient.get('/bienes');
 export const getBienById = (id) => apiClient.get(`/bienes/${id}`);
-export const createBien = (data) => apiClient.post('/bienes', data);
-export const updateBien = (id, data) => apiClient.put(`/bienes/${id}`, data);
+const datosBien = (data, foto) => {
+  if (!foto) return data;
+  const form = new FormData();
+  form.append('datos', JSON.stringify(data));
+  form.append('foto', foto);
+  return form;
+};
+export const createBien = (data, foto) => apiClient.post('/bienes', datosBien(data, foto));
+export const getRegistroBien = (registroId) => apiClient.get(`/bienes/registros/${registroId}`, { timeout: 5000 });
+export const updateBien = (id, data, foto) => apiClient.put(`/bienes/${id}`, datosBien(data, foto));
+export const getFotoBien = (ruta, signal) => apiClient.get(ruta.slice('/api'.length), { responseType: 'blob', signal });
 export const deleteBien = (id) => apiClient.delete(`/bienes/${id}`);
 export const getHistorialBien = (id) => apiClient.get(`/bienes/${id}/historial`);
 export const createBaja = (bienId, data) => apiClient.post(`/bajas/${bienId}`, data, {

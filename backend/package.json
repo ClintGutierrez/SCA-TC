@@ -39,6 +39,7 @@
     "multer": "^2.0.2",
     "nodemailer": "^10.1.1",
     "postgres": "^3.3.5",
+    "sharp": "^0.34.5",
     "swagger-ui-express": "^5.0.1",
     "uuid": "^9.0.0"
   },
