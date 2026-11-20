@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import './App.css';
 import * as api from './services/api';
 import { MENSAJES_FIN_SESION, MOTIVOS_FIN_SESION, alTerminarSesion } from './utils/sesion';
@@ -76,10 +76,22 @@ function App() {
   const [pedidoSolicitud,setPedidoSolicitud] = useState(null);
   const [focusSolicitud,setFocusSolicitud] = useState(null);
   const [focusPedido,setFocusPedido] = useState(null);
+  const configuracionRef = useRef(null);
 
   useEffect(() => {
     const handlePopState = () => {
-      setShowLanding(isSolicitudPathname(window.location.pathname));
+      const landing = isSolicitudPathname(window.location.pathname);
+      if (landing) {
+        const destination = window.location.href;
+        if (configuracionRef.current?.deferLeave(() => {
+          window.history.pushState({}, '', destination);
+          setShowLanding(true);
+        })) {
+          window.history.pushState({}, '', '/');
+          return;
+        }
+      }
+      setShowLanding(landing);
     };
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
@@ -103,12 +115,19 @@ function App() {
   const role = currentUser?.rol || 'tecnico';
   const permissions = rolePermissions[role] || rolePermissions.tecnico;
 
+  const leaveCurrentView = (action) => {
+    if (!configuracionRef.current?.deferLeave(action)) action();
+  };
+
   const handleSidebarNavigation = (view) => {
-    if (view === 'solicitudes_ti' && role === 'almacen' && !currentUser.es_ti) {
-      openLandingPage();
-      return;
-    }
-    setCurrentView(view);
+    if (view === currentView) return;
+    leaveCurrentView(() => {
+      if (view === 'solicitudes_ti' && role === 'almacen' && !currentUser.es_ti) {
+        openLandingPage();
+        return;
+      }
+      setCurrentView(view);
+    });
   };
 
   useEffect(() => {
@@ -224,11 +243,11 @@ function App() {
     setSidebarOpen(false);
   };
 
-  const handleLogout = () => {
+  const handleLogout = () => leaveCurrentView(() => {
     api.logout().catch(() => {});
     setAuthError('');
     resetSession();
-  };
+  });
 
   // Si el servidor da por terminada la sesión (cuenta deshabilitada o sesión expirada),
   // se vuelve al inicio de sesión mostrando el motivo.
@@ -243,12 +262,12 @@ function App() {
     return response.data.user;
   };
 
-  const openDashboardModule = (view, id) => {
+  const openDashboardModule = (view, id) => leaveCurrentView(() => {
     if (view === 'solicitudes_ti') setFocusSolicitud(id || null);
     if (view === 'almacen_ti') { setPedidoSolicitud(null); setFocusPedido(id || null); }
     if (view === 'inventario') setMostrarRegistro(false);
     setCurrentView(view);
-  };
+  });
 
   const renderView = () => {
     switch (currentView) {
@@ -295,7 +314,7 @@ function App() {
       case 'personal':
         return <Personal personal={personal} onRefresh={fetchPersonal} currentUser={currentUser} />;
       case 'configuracion':
-        return <Configuracion />;
+        return <Configuracion ref={configuracionRef} />;
       case 'solicitudes_ti':
         return <SolicitudesTI currentUser={currentUser} onOpenLanding={openLandingPage} focusId={focusSolicitud} onCreatePedido={(id) => { setPedidoSolicitud(id);setFocusPedido(null);setCurrentView('almacen_ti'); }} />;
       case 'almacen_ti':
@@ -364,8 +383,6 @@ function App() {
 
   const currentMeta = viewLabels[currentView] || viewLabels.dashboard;
 
-  const logout = useMemo(() => handleLogout, []);
-
   if (!authReady) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-950 text-white">
@@ -393,7 +410,7 @@ function App() {
         sidebarOpen={sidebarOpen}
         onProfileUpdate={handleProfileUpdate}
         onToggleSidebar={() => setSidebarOpen((open) => !open)}
-        onLogout={logout}
+        onLogout={handleLogout}
         onHome={() => openDashboardModule(role === 'almacen' ? 'almacen_ti' : role === 'auditor' ? 'auditoria' : 'dashboard')}
         title={currentView === 'dashboard' ? 'Dashboard' : currentMeta.title}
       />
@@ -408,7 +425,7 @@ function App() {
         />
 
         <main className="min-w-0 flex-1">
-          <div className={`min-h-[calc(100vh-210px)] rounded-[32px] border p-4 lg:p-6 ${currentView === 'inventario' ? 'border-slate-200 bg-slate-50 shadow-sm' : 'border-white/70 bg-white/60 shadow-[0_25px_80px_rgba(15,23,42,0.08)] backdrop-blur'}`}>
+          <div className="min-h-[calc(100vh-210px)] rounded-3xl border border-slate-200 bg-slate-50 p-4 shadow-sm lg:p-6">
             {loading ? (
               <div className="flex min-h-[420px] items-center justify-center">
                 <div className="rounded-3xl border border-slate-200 bg-white px-8 py-10 text-center shadow-lg">

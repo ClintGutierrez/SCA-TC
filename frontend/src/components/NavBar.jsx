@@ -191,7 +191,7 @@ export default function NavBar({ currentUser, sidebarOpen, onProfileUpdate, onTo
                 {profileSuccess && <p className="mt-5 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">{profileSuccess}</p>}
                 <div className="mt-6 flex gap-3">
                   <button type="button" onClick={() => setEditingProfile(true)} className="flex-1 rounded-2xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-blue-700">Editar perfil</button>
-                  <button type="button" onClick={onLogout} className="flex-1 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700 transition hover:bg-rose-100">Cerrar sesión</button>
+                  <button type="button" onClick={() => { setProfileOpen(false); onLogout(); }} className="flex-1 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700 transition hover:bg-rose-100">Cerrar sesión</button>
                 </div>
               </>
             )}

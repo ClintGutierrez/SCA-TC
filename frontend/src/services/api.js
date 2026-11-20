@@ -113,11 +113,12 @@ export const disablePersonal = (id) => apiClient.delete(`/personal/${id}`);
 export const getVinculosLaborales = (id) => apiClient.get(`/personal/${id}/vinculos`);
 export const createVinculoLaboral = (id, data) => apiClient.post(`/personal/${id}/vinculos`, data);
 export const updateVinculoLaboral = (id, vinculoId, data) => apiClient.put(`/personal/${id}/vinculos/${vinculoId}`, data);
-export const getConfiguracion = () => apiClient.get('/configuracion');
+export const getConfiguracion = (signal) => apiClient.get('/configuracion', { signal, timeout: 15000 });
 export const saveConfiguracion = (data) => apiClient.put('/configuracion', data);
 
 // Bienes
 export const getBienes = () => apiClient.get('/bienes');
+export const getPreferenciasAltaBien = (signal) => apiClient.get('/bienes/preferencias-alta', { signal, timeout: 5000 });
 export const getBienById = (id) => apiClient.get(`/bienes/${id}`);
 const datosBien = (data, foto) => {
   if (!foto) return data;
@@ -176,7 +177,7 @@ export const registrarSolicitudTI = (datos, documento) => {
 export const consultarSolicitudTI = (datos) => apiClient.post('/gestion-ti/consulta', datos);
 export const descargarDocumentoSeguimientoTI = (id, datos) => apiClient.post(`/gestion-ti/consulta/documentos/${id}`, datos, { responseType: 'blob' });
 export const getSolicitudesTI = () => apiClient.get('/gestion-ti/solicitudes');
-export const getSolicitudTI = (id) => apiClient.get(`/gestion-ti/solicitudes/${id}`);
+export const getSolicitudTI = (id, signal) => apiClient.get(`/gestion-ti/solicitudes/${id}`, { signal, timeout: 15000 });
 export const getPersonalTI = () => apiClient.get('/gestion-ti/personal-ti');
 export const accionSolicitudTI = (id, datos, archivos = []) => {
   const form = new FormData(); form.append('datos', JSON.stringify(datos));
@@ -188,7 +189,7 @@ export const getPedidosTI = () => apiClient.get('/gestion-ti/pedidos');
 export const vincularBienPedidoTI = (id, bienId) => apiClient.post(`/gestion-ti/pedidos/${id}/bienes`, { bienId }).then(tiChanged);
 export const crearPedidoTI = (data) => apiClient.post('/gestion-ti/pedidos', data).then(tiChanged);
 export const accionPedidoTI = (id, data) => apiClient.post(`/gestion-ti/pedidos/${id}/acciones`, data).then(tiChanged);
-export const getHistorialPedidoTI = (id) => apiClient.get(`/gestion-ti/pedidos/${id}/historial`);
+export const getHistorialPedidoTI = (id, signal) => apiClient.get(`/gestion-ti/pedidos/${id}/historial`, { signal, timeout: 15000 });
 export const getNotificacionesTI = () => apiClient.get('/gestion-ti/notificaciones');
 export const leerNotificacionTI = (id) => apiClient.post(`/gestion-ti/notificaciones/${id}/leida`).then(tiChanged);
 

@@ -1,4 +1,6 @@
+import { isDeepStrictEqual } from 'node:util';
 import { DEPRECIACION_ANUAL_PREDETERMINADA, validarPorcentajeAnual } from '../utils/depreciacion.js';
+import { GARANTIA_PREDETERMINADA, normalizarAniosGarantia } from '../utils/garantia.js';
 
 const DEFAULT_SETTINGS = {
   institution: {
@@ -11,7 +13,7 @@ const DEFAULT_SETTINGS = {
   },
   inventory: {
     moneda: 'PEN',
-    garantiaPredeterminada: 1,
+    garantiaPredeterminada: GARANTIA_PREDETERMINADA,
     depreciacionAnual: DEPRECIACION_ANUAL_PREDETERMINADA,
     requiereCodigoPatrimonial: true,
     requiereNumeroSerie: false,
@@ -71,12 +73,32 @@ const DEFAULT_CATALOGS = {
   tipos_mantenimiento: ['Preventivo', 'Correctivo', 'Repotenciación'],
 };
 
-const mergeSettings = (saved) => Object.fromEntries(
-  Object.entries(DEFAULT_SETTINGS).map(([section, defaults]) => [
-    section,
-    { ...defaults, ...(saved[section] || {}) },
-  ]),
-);
+function mergeSectionSettings(section, saved) {
+  const settings = { ...DEFAULT_SETTINGS[section], ...saved };
+  if (section === 'inventory') {
+    settings.garantiaPredeterminada = normalizarAniosGarantia(settings.garantiaPredeterminada) ?? GARANTIA_PREDETERMINADA;
+  }
+  return settings;
+}
+
+const valoresCatalogo = (categoria, rows) => rows.length
+  ? rows.map(({ valor, activo }) => ({ valor, activo }))
+  : DEFAULT_CATALOGS[categoria].map((valor) => ({ valor, activo: true }));
+
+function valorAuditable(campo, valor) {
+  if (campo !== 'siga.urlServicio' || !valor) return valor ?? null;
+
+  // Los parámetros y las credenciales de una URL pueden contener secretos.
+  try {
+    const url = new URL(valor);
+    if (url.protocol === 'https:' || url.protocol === 'http:') {
+      return url.origin + url.pathname;
+    }
+  } catch {
+    return 'URL protegida';
+  }
+  return 'URL protegida';
+}
 
 export const getConfiguracion = async (req, res, sql) => {
   try {
@@ -95,7 +117,10 @@ export const getConfiguracion = async (req, res, sql) => {
         grouped[category] = values.map((valor, orden) => ({ id: null, categoria: category, valor, activo: true, orden }));
       }
     });
-    res.json({ settings: mergeSettings(saved), catalogs: grouped });
+    const mergedSettings = Object.fromEntries(
+      Object.keys(DEFAULT_SETTINGS).map((section) => [section, mergeSectionSettings(section, saved[section])]),
+    );
+    res.json({ settings: mergedSettings, catalogs: grouped });
   } catch (error) {
     console.error('Error al obtener configuración:', error);
     res.status(500).json({ error: 'No se pudo obtener la configuración' });
@@ -111,7 +136,9 @@ export const saveConfiguracion = async (req, res, sql) => {
 
     const settings = req.body?.settings;
     const catalogs = req.body?.catalogs;
-    if (!settings || typeof settings !== 'object') return res.status(400).json({ error: 'La configuración es inválida' });
+    if (!settings || typeof settings !== 'object' || Array.isArray(settings)) {
+      return res.status(400).json({ error: 'La configuración es inválida' });
+    }
     if (settings.inventory && typeof settings.inventory === 'object' && Object.hasOwn(settings.inventory, 'depreciacionAnual')) {
       try {
         const tasa = validarPorcentajeAnual(settings.inventory.depreciacionAnual);
@@ -121,31 +148,74 @@ export const saveConfiguracion = async (req, res, sql) => {
         return res.status(400).json({ error: 'La depreciación anual debe ser un porcentaje mayor que 0 y hasta 100, con hasta dos decimales' });
       }
     }
+    if (settings.inventory && typeof settings.inventory === 'object' && Object.hasOwn(settings.inventory, 'garantiaPredeterminada')) {
+      const anios = normalizarAniosGarantia(settings.inventory.garantiaPredeterminada);
+      if (anios === null) {
+        return res.status(400).json({ error: 'La garantía predeterminada debe ser un número entero entre 0 y 10 años' });
+      }
+      settings.inventory = { ...settings.inventory, garantiaPredeterminada: anios };
+    }
 
     await sql.begin(async (transaction) => {
-      for (const [clave, valor] of Object.entries(settings)) {
-        if (!Object.hasOwn(DEFAULT_SETTINGS, clave) || !valor || typeof valor !== 'object') continue;
+      // Serializa los guardados para leer el valor anterior también en las primeras altas.
+      await transaction`SELECT pg_advisory_xact_lock(hashtext('sca:configuracion'))`;
+      const anteriores = {};
+      const nuevos = {};
+      for (const clave of Object.keys(DEFAULT_SETTINGS)) {
+        const valor = settings[clave];
+        if (!valor || typeof valor !== 'object' || Array.isArray(valor) || !Object.keys(valor).length) continue;
+        const [row] = await transaction`SELECT valor FROM configuracion_sistema WHERE clave = ${clave}`;
+        const previous = mergeSectionSettings(clave, row?.valor);
+        for (const [key, value] of Object.entries(valor)) {
+          if (!Object.hasOwn(DEFAULT_SETTINGS[clave], key) || isDeepStrictEqual(previous[key], value)) continue;
+          const field = clave + '.' + key;
+          anteriores[field] = valorAuditable(field, previous[key]);
+          nuevos[field] = valorAuditable(field, value);
+        }
         await transaction`
           INSERT INTO configuracion_sistema (clave, valor, actualizado_por, updated_at)
           VALUES (${clave}, ${transaction.json(valor)}, ${operatorId}, CURRENT_TIMESTAMP)
           ON CONFLICT (clave) DO UPDATE
-          SET valor = EXCLUDED.valor, actualizado_por = EXCLUDED.actualizado_por, updated_at = CURRENT_TIMESTAMP
+          SET valor = configuracion_sistema.valor || EXCLUDED.valor,
+            actualizado_por = EXCLUDED.actualizado_por, updated_at = CURRENT_TIMESTAMP
+          WHERE configuracion_sistema.valor IS DISTINCT FROM configuracion_sistema.valor || EXCLUDED.valor
         `;
       }
       if (catalogs && typeof catalogs === 'object') {
-        for (const [categoria, values] of Object.entries(catalogs)) {
-          if (!Object.hasOwn(DEFAULT_CATALOGS, categoria) || !Array.isArray(values)) continue;
-          await transaction`DELETE FROM catalogos_sistema WHERE categoria = ${categoria}`;
-          const cleanValues = values.map((value) => typeof value === 'string' ? value.trim() : value?.valor)
-            .filter(Boolean);
+        for (const categoria of Object.keys(DEFAULT_CATALOGS)) {
+          const values = catalogs[categoria];
+          if (!Array.isArray(values)) continue;
+          const cleanValues = [...new Set(values.map((entry) => typeof entry === 'string' ? entry.trim() : entry?.valor)
+            .filter((value) => typeof value === 'string' && value.trim()))];
+          const rows = await transaction`
+            SELECT valor, activo FROM catalogos_sistema WHERE categoria = ${categoria} ORDER BY orden, valor
+          `;
+          const previous = valoresCatalogo(categoria, rows);
+          const activeByValue = new Map(rows.map(({ valor, activo }) => [valor, activo]));
+          const next = valoresCatalogo(categoria, cleanValues.map((valor) => ({ valor, activo: activeByValue.get(valor) ?? true })));
+          if (!isDeepStrictEqual(previous, next)) {
+            anteriores['catalogs.' + categoria] = previous;
+            nuevos['catalogs.' + categoria] = next;
+          }
+          await transaction`
+            DELETE FROM catalogos_sistema
+            WHERE categoria = ${categoria} AND NOT (valor = ANY(${transaction.array(cleanValues)}::text[]))
+          `;
           for (const [orden, valor] of cleanValues.entries()) {
             await transaction`
               INSERT INTO catalogos_sistema (categoria, valor, orden)
               VALUES (${categoria}, ${valor}, ${orden})
-              ON CONFLICT (categoria, valor) DO UPDATE SET activo = TRUE, orden = EXCLUDED.orden
+              ON CONFLICT (categoria, valor) DO UPDATE SET orden = EXCLUDED.orden
+                WHERE catalogos_sistema.orden IS DISTINCT FROM EXCLUDED.orden
             `;
           }
         }
+      }
+      if (Object.keys(nuevos).length > 0) {
+        await transaction`
+          INSERT INTO audit_log (usuario_id, tabla_afectada, operacion, datos_anteriores, datos_nuevos, created_at)
+          VALUES (${operatorId}, 'configuracion_sistema', 'UPDATE', ${transaction.json(anteriores)}, ${transaction.json(nuevos)}, clock_timestamp())
+        `;
       }
     });
     res.json({ message: 'Configuración guardada correctamente' });

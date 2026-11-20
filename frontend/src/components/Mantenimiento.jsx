@@ -40,12 +40,13 @@ export default function Mantenimiento({ bienes, canCreate, canDelete }) {
 
   return (
     <div>
-      <div className="flex justify-between items-center mb-8">
-        <h2 className="text-3xl font-bold">Gestión de Mantenimiento</h2>
+      <div className="mb-8 flex flex-wrap items-center justify-between gap-3">
+        <h1 className="sca-page-title">Gestión de mantenimiento</h1>
         {canCreate ? (
           <button
             onClick={() => setShowForm(!showForm)}
-            className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+            type="button"
+            className="sca-button sca-button-primary"
           >
             + Agregar Mantenimiento
           </button>

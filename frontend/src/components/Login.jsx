@@ -74,7 +74,7 @@ export default function Login({ onLogin, forSolicitud, loading, error }) {
             )}
 
             {/* Mantiene el foco mientras se valida el acceso. */}
-            <button type="submit" aria-disabled={loading || undefined} className="login-submit">
+            <button type="submit" aria-disabled={loading || undefined} className="sca-button sca-button-primary login-submit">
               {loading ? 'Ingresando…' : 'Acceder al sistema'}
             </button>
           </form>

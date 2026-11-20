@@ -88,9 +88,11 @@ test('H09: cambiar contraseña permite entrar con la nueva y rechaza la anterior
 
 test('H02: configuración conserva el operador de sub aunque exista otro id', async () => {
   const authors = [];
+  const auditAuthors = [];
   const tx = async (parts, ...values) => {
-    assert.match(parts.join(''), /INSERT INTO configuracion_sistema/);
-    authors.push(values[2]);
+    const query = parts.join('');
+    if (query.includes('INSERT INTO configuracion_sistema')) authors.push(values[2]);
+    if (query.includes('INSERT INTO audit_log')) auditAuthors.push(values[0]);
     return [];
   };
   tx.json = (value) => value;
@@ -101,6 +103,7 @@ test('H02: configuración conserva el operador de sub aunque exista otro id', as
   }, res, { begin: (callback) => callback(tx) });
   assert.equal(res.statusCode, 200);
   assert.deepEqual(authors, [7, 7]);
+  assert.deepEqual(auditAuthors, [7]);
 });
 
 test('H02: baja conserva el operador de sub y permite omitir el documento', async (t) => {

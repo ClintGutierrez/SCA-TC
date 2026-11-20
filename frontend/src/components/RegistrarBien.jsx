@@ -122,12 +122,24 @@ export default function RegistrarBien({ onSaved, onCancel }) {
   const mensajeRef = useRef(null);
   const focoPendiente = useRef(false);
   const intentoRef = useRef(null);
+  const garantiaEditada = useRef(false);
   const [formData, setFormData] = useState(FORM_VACIO);
   const [foto, setFoto] = useState(null);
   const [errores, setErrores] = useState({});
   const [mensaje, setMensaje] = useState(null);
   const [loading, setLoading] = useState(false);
   const cambiarFoto = (archivo) => { setFoto(archivo); setErrores((prev) => ({ ...prev, foto: undefined })); };
+
+  useEffect(() => {
+    const request = new AbortController();
+    api.getPreferenciasAltaBien(request.signal).then(({ data }) => {
+      const anios = data?.garantiaPredeterminada;
+      if (request.signal.aborted || garantiaEditada.current || !Number.isInteger(anios) || anios < 0 || anios > 10) return;
+      setFormData((previous) => ({ ...previous, garantiaAnios: String(anios) }));
+      setErrores((previous) => previous.garantiaAnios ? { ...previous, garantiaAnios: undefined } : previous);
+    }).catch(() => { /* El plazo se puede indicar manualmente si la preferencia no está disponible. */ });
+    return () => request.abort();
+  }, []);
 
   useEffect(() => {
     if (loading || !focoPendiente.current) return;
@@ -148,6 +160,7 @@ export default function RegistrarBien({ onSaved, onCancel }) {
   const handleChange = (e) => {
     const { name, value } = e.target;
     const cambioTipo = name === 'tipo';
+    if (name === 'garantiaAnios') garantiaEditada.current = true;
     setFormData((prev) => ({
       ...prev,
       [name]: value,
@@ -262,7 +275,7 @@ export default function RegistrarBien({ onSaved, onCancel }) {
       <header className="inventory-editor-header">
         <span className="inventory-editor-emblem"><RegisterIcon name="box" /></span>
         <div className="inventory-editor-title">
-          <h3 id="register-asset-title">Registrar bien informático</h3>
+          <h3 id="register-asset-title" className="sca-section-title">Registrar bien informático</h3>
         </div>
         <button type="button" className="inventory-editor-close" onClick={onCancel} disabled={loading} aria-label="Cerrar registro"><RegisterIcon name="close" /></button>
       </header>
@@ -497,10 +510,10 @@ export default function RegistrarBien({ onSaved, onCancel }) {
         <footer className="inventory-editor-footer">
           <p><span>*</span> Campos obligatorios</p>
           <div className="inventory-editor-buttons">
-          <button type="button" onClick={onCancel} className="inventory-editor-cancel" disabled={loading}>Cancelar</button>
+          <button type="button" onClick={onCancel} className="sca-button" disabled={loading}>Cancelar</button>
           <button
             type="submit"
-            className="inventory-editor-save"
+            className="sca-button sca-button-primary inventory-editor-save"
             disabled={loading}
           >
             <RegisterIcon name={loading ? 'loader' : 'save'} />

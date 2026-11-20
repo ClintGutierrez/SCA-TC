@@ -1,6 +1,7 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { responderError } from '../utils/errores.js';
 import { anoLima, calcularDepreciacion } from '../utils/depreciacion.js';
+import { aniosGarantiaValidos, GARANTIA_PREDETERMINADA, normalizarAniosGarantia } from '../utils/garantia.js';
 
 const MAC_REGEX = /^([0-9A-Fa-f]{2}[:-]){5}[0-9A-Fa-f]{2}$/;
 
@@ -47,7 +48,7 @@ const errorFecha = (texto) => {
   return null;
 };
 
-const errorGarantia = (anios) => (Number.isInteger(anios) && anios >= 0 && anios <= 10
+const errorGarantia = (anios) => (aniosGarantiaValidos(anios)
   ? null : 'Debe ser un número entero entre 0 y 10');
 
 const errorMac = (mac) => (mac && !MAC_REGEX.test(mac) ? 'Formato de MAC inválido (ej. A1:B2:C3:D4:E5:F6)' : null);
@@ -177,6 +178,17 @@ export const getBienById = async (req, res, sql) => {
     res.json(bien[0]);
   } catch (error) {
     return responderError(res, error, 'bienes.getBienById');
+  }
+};
+
+export const getPreferenciasAlta = async (req, res, sql) => {
+  try {
+    const [config] = await sql`SELECT valor->'garantiaPredeterminada' AS anios FROM configuracion_sistema WHERE clave = 'inventory'`;
+    res.set('Cache-Control', 'no-store').json({
+      garantiaPredeterminada: normalizarAniosGarantia(config?.anios) ?? GARANTIA_PREDETERMINADA,
+    });
+  } catch (error) {
+    return responderError(res, error, 'bienes.getPreferenciasAlta');
   }
 };
 

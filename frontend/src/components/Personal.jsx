@@ -13,10 +13,9 @@ const REGIMENES = ['Practicante', 'Locador de servicios', 'CAS', 'CAP', 'Persona
 const SEDES = ['Centro de Lima', 'Sede Central', 'Centro de estudios constitucionales', 'Sede Arequipa'];
 const REQUIRED = ['nombre', 'apellido', 'dni', 'correo_institucional', 'regimen_laboral'];
 const cx = (...values) => values.filter(Boolean).join(' ');
-const inputClass = (error) => cx('mt-2 block w-full min-w-0 rounded-xl border bg-white px-3.5 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:ring-4 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-600',
-  error ? 'border-rose-400 focus:border-rose-500 focus:ring-rose-100' : 'border-slate-200 focus:border-blue-500 focus:ring-blue-50');
-const primaryButton = 'inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-100 disabled:cursor-wait disabled:opacity-60';
-const secondaryButton = 'inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 focus:outline-none focus:ring-4 focus:ring-slate-100 disabled:opacity-50';
+const inputClass = (error) => cx('mt-2 block sca-field', error && 'sca-field-error');
+const primaryButton = 'sca-button sca-button-primary';
+const secondaryButton = 'sca-button';
 const fullName = (person) => person.apellido + ', ' + person.nombre;
 const initials = (person) => (person.nombre?.[0] || '') + (person.apellido?.[0] || '');
 const normalize = (value) => String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
@@ -98,7 +97,7 @@ function PersonalActions({ person, saving, canEdit, onVinculo, onEdit, onDisable
   const run = (callback) => { close(true); callback(person); };
 
   return <div className="personal-row-actions">
-    <button type="button" disabled={saving} onClick={() => onVinculo(person.id)} className="personal-link-button" title="Consultar y gestionar vínculo laboral" aria-label={'Vínculo laboral de ' + fullName(person)}>
+    <button type="button" disabled={saving} onClick={() => onVinculo(person.id)} className="sca-button sca-button-row personal-link-button" title="Consultar y gestionar vínculo laboral" aria-label={'Vínculo laboral de ' + fullName(person)}>
       <Icon name="briefcase" />Vínculo</button>
     {canEdit && <button ref={trigger} type="button" disabled={saving} className="personal-menu-trigger" aria-label={'Más acciones para ' + fullName(person)}
       aria-haspopup="menu" aria-expanded={open} aria-controls={open ? menuId : undefined}
@@ -273,14 +272,14 @@ export default function Personal({ personal: initialPersonal = [], onRefresh, cu
   return <div data-personal-screen className="personal-screen">
     <header className="personal-header">
       <div>
-        <h1 id="personal-directory-title">Personal de la institución</h1>
+        <h1 id="personal-directory-title" className="sca-page-title">Personal de la institución</h1>
         <div className="personal-counts">
           <span>{personal.length.toLocaleString('es-PE')} {personal.length === 1 ? 'trabajador registrado' : 'trabajadores registrados'}</span>
           {personal.length > 0 && <><span className="personal-count-active">{activeCount} {activeCount === 1 ? 'activo' : 'activos'}</span>
             {personal.length > activeCount && <span>{personal.length - activeCount} {personal.length - activeCount === 1 ? 'inactivo' : 'inactivos'}</span>}</>}
         </div>
       </div>
-      {canEdit ? <button type="button" disabled={saving} onClick={showForm ? resetForm : startNew} className={cx('personal-create-button', showForm && 'is-secondary')}>
+      {canEdit ? <button type="button" disabled={saving} onClick={showForm ? resetForm : startNew} className={cx('personal-create-button sca-button', !showForm && 'sca-button-primary')}>
         <Icon name={showForm ? 'close' : 'plus'} />{showForm ? 'Cerrar formulario' : 'Registrar personal'}</button>
         : <span className="personal-read-only">Solo consulta</span>}
     </header>
@@ -342,10 +341,10 @@ export default function Personal({ personal: initialPersonal = [], onRefresh, cu
       <div className="personal-toolbar">
         <div className="personal-toolbar-row">
           <div className="personal-search"><Icon name="search" />
-            <input type="search" aria-label="Buscar personal" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar por nombre, DNI, área o sede" />
+            <input className="sca-field" type="search" aria-label="Buscar personal" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Nombre, DNI o área" />
           </div>
           <div className="personal-status-filter"><Select aria-label="Filtrar por estado del trabajador" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} className="personal-status-select"><option value="">Todos los estados</option><option value="activo">Trabajadores activos</option><option value="inactivo">Trabajadores inactivos</option></Select></div>
-          <button type="button" className="personal-refresh" onClick={loadPersonal} disabled={loading || saving}><Icon name="refresh" />Actualizar</button>
+          <button type="button" className="sca-button personal-refresh" onClick={loadPersonal} disabled={loading || saving}><Icon name="refresh" />Actualizar</button>
         </div>
         <div role="status" aria-live="polite" className={hasFilters ? 'personal-filter-summary' : 'sr-only'}>
           <span>{hasFilters ? `${filteredPersonal.length.toLocaleString('es-PE')} resultados de ${personal.length.toLocaleString('es-PE')} trabajadores` : ''}</span>

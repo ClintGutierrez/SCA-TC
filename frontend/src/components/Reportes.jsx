@@ -50,11 +50,12 @@ export default function Reportes() {
 
   return (
     <div>
-      <div className="flex justify-between items-center mb-8">
-        <h2 className="text-3xl font-bold">Reportes</h2>
+      <div className="mb-8 flex flex-wrap items-center justify-between gap-3">
+        <h1 className="sca-page-title">Reportes</h1>
         <button
           onClick={fetchReportes}
-          className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 disabled:opacity-50"
+          type="button"
+          className="sca-button"
           disabled={loading}
         >
           {loading ? 'Actualizando...' : 'Actualizar'}
@@ -62,7 +63,7 @@ export default function Reportes() {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-2 mb-8 border-b">
+      <div className="mb-8 flex flex-wrap gap-2 border-b">
         {['inventario', 'depreciacion', 'mantenimiento', 'asignaciones'].map(tab => (
           <button
             key={tab}

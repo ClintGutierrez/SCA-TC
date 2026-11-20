@@ -100,8 +100,8 @@ export default function Bajas({ bienes, canCreate }) {
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
             <p className="text-sm font-semibold uppercase tracking-[0.2em] text-blue-700">Control patrimonial</p>
-            <h2 className="mt-2 text-3xl font-bold text-slate-900">Bajas de bienes informáticos</h2>
-            <p className="mt-2 text-slate-600">Consulta las bajas realizadas y conserva sus evidencias fotográficas.</p>
+            <h1 className="mt-2 sca-page-title">Bajas de bienes informáticos</h1>
+            <p className="mt-2 sca-description">Consulta las bajas realizadas y conserva sus evidencias fotográficas.</p>
           </div>
           {canCreate && (
             <button
@@ -110,7 +110,7 @@ export default function Bajas({ bienes, canCreate }) {
                 setMessage(null);
                 setShowForm((visible) => !visible);
               }}
-              className="rounded-lg bg-red-600 px-5 py-3 font-semibold text-white shadow-sm transition hover:bg-red-700"
+              className="sca-button"
             >
               {showForm ? 'Cerrar formulario' : 'Dar de baja un bien'}
             </button>

@@ -1,14 +1,11 @@
 .personal-screen { container: personal / inline-size; display: flex; flex-direction: column; gap: 18px; min-width: 0; width: 100%; }
 .personal-header { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 2px 0 4px; }
-.personal-header h1 { margin: 0; color: #182943; font-size: 24px; font-weight: 650; line-height: 1.3; letter-spacing: -.035em; }
-.personal-counts { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin-top: 7px; color: #64748b; font-size: 12px; line-height: 1.5; }
+.personal-counts { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin-top: 7px; color: var(--sca-muted); font-size: var(--sca-text-meta); line-height: 1.5; }
 .personal-counts > span + span { display: inline-flex; align-items: center; gap: 7px; }
 .personal-counts > span + span::before { width: 4px; height: 4px; border-radius: 50%; background: #aab7c9; content: ''; }
-.personal-counts .personal-count-active { color: #4a8068; }
+.personal-counts .personal-count-active { color: #246044; }
 .personal-counts .personal-count-active::before { background: #63a989; }
-.personal-create-button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; flex-shrink: 0; min-height: 40px; padding: 10px 17px; border: 1px solid #2563eb; border-radius: 9px; background: #2563eb; color: #fff; font: inherit; font-size: 12px; font-weight: 600; box-shadow: 0 2px 5px rgb(37 99 235 / 14%); }
-.personal-create-button:hover:not(:disabled) { background: #1d4ed8; }
-.personal-create-button.is-secondary { border-color: #dce4ef; background: #fff; color: #60728e; box-shadow: none; }
+.personal-create-button { flex-shrink: 0; }
 .personal-create-button svg { width: 16px; height: 16px; flex-shrink: 0; }
 .personal-read-only { padding: 6px 10px; border: 1px solid #e2e8f0; border-radius: 7px; color: #64748b; font-size: 11px; white-space: nowrap; }
 .personal-directory { min-width: 0; overflow: hidden; border: 1px solid #dfe6ef; border-radius: 14px; background: #fff; }
@@ -16,11 +13,9 @@
 .personal-toolbar-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(160px, 210px) auto; align-items: center; gap: 10px; }
 .personal-search { position: relative; min-width: 0; }
 .personal-search > svg { position: absolute; top: 50%; left: 13px; width: 16px; height: 16px; transform: translateY(-50%); color: #9aabc1; pointer-events: none; }
-.personal-search input { display: block; width: 100%; min-width: 0; min-height: 40px; padding: 9px 12px 9px 38px; border: 1px solid #dce4ef; border-radius: 8px; background: #fff; color: #334155; font: inherit; font-size: 12px; line-height: 1.5; }
-.personal-search input::placeholder { color: #96a4b9; }
+.personal-search input { display: block; padding-left: 2.375rem; }
 .personal-status-filter { min-width: 0; }
-.personal-status-select, .personal-refresh { width: 100%; min-height: 40px; padding: 9px 12px; border: 1px solid #dce4ef; border-radius: 8px; background: #fff; color: #526279; font: inherit; font-size: 12px; line-height: 1.5; }
-.personal-refresh { display: inline-flex; align-items: center; justify-content: center; gap: 8px; font-weight: 600; white-space: nowrap; }
+.personal-status-select, .personal-refresh { width: 100%; }
 .personal-refresh svg { width: 14px; height: 14px; }
 .personal-refresh:hover:not(:disabled) { border-color: #b9cef2; background: #f2f7ff; color: #2563eb; }
 .personal-filter-summary { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; margin-top: 12px; padding-top: 12px; border-top: 1px solid #edf1f6; color: #64748b; font-size: 11px; }
@@ -56,8 +51,6 @@
 .personal-worker-status::before { width: 5px; height: 5px; flex-shrink: 0; border-radius: 50%; background: currentColor; content: ''; }
 .personal-worker-status.is-active { background: #edf7f2; color: #34745a; }
 .personal-row-actions { display: flex; align-items: center; justify-content: flex-end; gap: 6px; white-space: nowrap; }
-.personal-link-button { display: inline-flex; align-items: center; justify-content: center; gap: 5px; min-height: 32px; padding: 6px 9px; border: 1px solid #dfe7f3; border-radius: 7px; background: #fff; color: #41648f; font: inherit; font-size: 11px; font-weight: 600; }
-.personal-link-button:hover:not(:disabled) { border-color: #b9cdec; background: #f1f6fe; color: #1d4ed8; }
 .personal-link-button svg { width: 13px; height: 13px; }
 .personal-menu-trigger { display: flex; align-items: center; justify-content: center; flex: 0 0 30px; width: 30px; height: 32px; padding: 0; border: 1px solid transparent; border-radius: 7px; background: transparent; color: #8494ab; }
 .personal-menu-trigger svg { width: 18px; height: 18px; }
@@ -74,8 +67,8 @@
 .personal-card-heading > .personal-worker-status { flex-shrink: 0; }
 .personal-card-role { margin: 13px 0 0; color: #526681; font-size: 12px; font-weight: 500; }
 .personal-card-details { display: flex; flex-direction: column; gap: 14px; margin-top: 18px; }
-.personal-card-details dt { color: #94a0b3; font-size: 10px; }
-.personal-card-details dd { margin: 5px 0 0; color: #526681; font-size: 12px; line-height: 1.6; overflow-wrap: anywhere; }
+.personal-card-details dt { color: var(--sca-muted); font-size: var(--sca-text-meta); }
+.personal-card-details dd { margin: 5px 0 0; color: var(--sca-ink); font-size: var(--sca-text-small); line-height: 1.5; overflow-wrap: anywhere; }
 .personal-card-contract { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
 .personal-card-footer { margin-top: 18px; padding-top: 14px; border-top: 1px solid #edf1f6; }
 .personal-screen button:disabled, .personal-row-menu button:disabled { cursor: not-allowed; opacity: .55; }
@@ -86,11 +79,8 @@
 }
 @container personal (max-width: 640px) {
   .personal-header { align-items: flex-start; flex-wrap: wrap; gap: 14px; }
-  .personal-header h1 { font-size: 21px; }
-  .personal-create-button { min-height: 44px; }
   .personal-toolbar-row { grid-template-columns: minmax(0, 1fr) auto; }
   .personal-search { grid-column: 1 / -1; }
-  .personal-search input, .personal-status-select, .personal-refresh { min-height: 44px; }
   .personal-cards { grid-template-columns: minmax(0, 1fr); }
 }
 @container personal (max-width: 420px) {
@@ -99,4 +89,4 @@
   .personal-cards { padding: 12px; }
   .personal-card { padding: 15px; }
 }
-@media (pointer: coarse) { .personal-link-button, .personal-menu-trigger, .personal-row-menu button { min-height: 44px; } }
+@media (pointer: coarse) { .personal-menu-trigger, .personal-row-menu button { min-height: var(--sca-control-height); } }

@@ -595,14 +595,14 @@ export default function InventarioList({ bienes, onRefresh, canCreate, canEdit, 
       {/* Header */}
       <header className="inventory-header">
         <div>
-          <h1>Inventario de bienes</h1>
-          <p>{bienes.length.toLocaleString('es-PE')} bienes registrados</p>
+          <h1 className="sca-page-title">Inventario de bienes</h1>
+          <p className="sca-muted">{bienes.length.toLocaleString('es-PE')} {bienes.length === 1 ? 'bien registrado' : 'bienes registrados'}</p>
         </div>
         {canCreate && !registrationOpen ? (
           <button
             type="button"
             onClick={() => onCreate ? onCreate() : setShowForm(!showForm)}
-            className="inventory-create-button"
+            className="sca-button sca-button-primary inventory-create-button"
             disabled={loading}
           >
             <Icon name="plus" /> Registrar bien
@@ -651,8 +651,7 @@ export default function InventarioList({ bienes, onRefresh, canCreate, canEdit, 
               <header className="inventory-editor-header">
                 <span className="inventory-editor-emblem"><Icon name="edit" /></span>
                 <div className="inventory-editor-title">
-                  <span className="inventory-editor-eyebrow">INVENTARIO / FICHA DEL BIEN</span>
-                  <h3 id="asset-form-title">{editingId ? 'Editar ficha técnica' : 'Registrar nuevo bien'}</h3>
+                  <h3 id="asset-form-title" className="sca-section-title">{editingId ? 'Editar ficha técnica' : 'Registrar nuevo bien'}</h3>
                   <p id="asset-form-description">{editingId ? (formData.codigoPatrimonial || 'Sin código patrimonial') : 'Completa los datos del equipo para registrarlo.'}</p>
                 </div>
                 <button type="button" className="inventory-editor-close" onClick={resetForm} disabled={loading} aria-label="Cerrar formulario"><Icon name="close" /></button>
@@ -907,8 +906,8 @@ export default function InventarioList({ bienes, onRefresh, canCreate, canEdit, 
                 <footer className="inventory-editor-footer">
                   <p><span>*</span> Campos obligatorios</p>
                   <div className="inventory-editor-buttons">
-                    <button type="button" className="inventory-editor-cancel" onClick={resetForm} disabled={loading}>Cancelar</button>
-                    <button type="submit" className="inventory-editor-save" disabled={loading}>
+                    <button type="button" className="sca-button" onClick={resetForm} disabled={loading}>Cancelar</button>
+                    <button type="submit" className="sca-button sca-button-primary inventory-editor-save" disabled={loading}>
                       <Icon name={loading ? 'loader' : 'save'} />
                       {loading ? 'Guardando...' : editingId ? 'Guardar cambios' : 'Registrar bien'}
                     </button>
@@ -931,8 +930,8 @@ export default function InventarioList({ bienes, onRefresh, canCreate, canEdit, 
               type="search"
               value={filtroBusqueda}
               onChange={(event) => setFiltroBusqueda(event.target.value)}
-              placeholder="Buscar por código, serie, equipo, marca..."
-              className="inventory-search-input"
+              placeholder="Código, serie o equipo"
+              className="sca-field inventory-search-input"
             />
           </div>
           <div className="inventory-type-filter">
@@ -955,7 +954,7 @@ export default function InventarioList({ bienes, onRefresh, canCreate, canEdit, 
             onClick={() => setFiltrosAvanzados((visible) => !visible)}
             aria-expanded={filtrosAvanzados}
             aria-controls="inventory-advanced-filters"
-            className={`inventory-filter-toggle${filtrosAvanzados ? ' is-open' : ''}`}
+            className={`sca-button inventory-filter-toggle${filtrosAvanzados ? ' is-open' : ''}`}
           >
             <Icon name="filter" /> Filtros avanzados
           </button>
@@ -1074,7 +1073,7 @@ export default function InventarioList({ bienes, onRefresh, canCreate, canEdit, 
           >
             <div className="mb-4 flex shrink-0 items-start justify-between gap-4 border-b border-slate-200 pb-4">
               <div>
-                <h2 id="specs-title" className="text-xl font-bold text-slate-900">Especificaciones Técnicas</h2>
+                <h2 id="specs-title" className="sca-section-title">Especificaciones técnicas</h2>
                 <p className="mt-1 text-sm text-slate-600">{specsBien.nombre}</p>
               </div>
               <button type="button" onClick={() => setSpecsBien(null)} aria-label="Cerrar especificaciones" className="rounded p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-900">
@@ -1126,7 +1125,7 @@ export default function InventarioList({ bienes, onRefresh, canCreate, canEdit, 
           >
             <div className="mb-4 flex shrink-0 items-start justify-between gap-4 border-b border-slate-200 pb-4">
               <div>
-                <h2 id="history-title" className="text-xl font-bold text-slate-900">Historial de ficha técnica</h2>
+                <h2 id="history-title" className="sca-section-title">Historial de ficha técnica</h2>
                 <p className="mt-1 text-sm text-slate-600">{historyBien.nombre}</p>
               </div>
               <button type="button" onClick={() => setHistoryBien(null)} aria-label="Cerrar historial" className="rounded p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-900">

@@ -20,8 +20,6 @@ const SOURCES = [
 const initialSources = () => Object.fromEntries(SOURCES.map(({ key }) => [key, { status: 'loading', data: null, updatedAt: null }]));
 const cx = (...values) => values.filter(Boolean).join(' ');
 const card = 'min-w-0 rounded-2xl border border-slate-200 bg-white';
-const secondary = 'inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-base font-semibold text-slate-700 transition hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-100 disabled:opacity-50';
-const primary = 'inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-base font-semibold text-white transition hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-100';
 const selectClass = 'min-h-10 min-w-0 rounded-xl border border-slate-200 bg-white px-3 py-2 text-base text-slate-600 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-50';
 
 function Icon({ name, className = 'h-5 w-5' }) {
@@ -152,24 +150,32 @@ export default function Dashboard({ currentUser, onNavigate = () => {}, onInvent
   const inventoryEmpty = sources.bienes.status === 'error' ? 'No se pudo consultar el inventario' : 'Cargando inventario';
 
   return <div data-dashboard-screen className="space-y-5">
-    <header className="flex flex-col justify-between gap-4 py-1 sm:flex-row sm:items-start">
-      <div><p className="text-base font-semibold uppercase tracking-[0.2em] text-blue-600">Control de activos · SCA-TC</p>
-        <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">Resumen ejecutivo</h1>
-        <p className="mt-2 text-base leading-6 text-slate-600">Inventario, atención de TI y pendientes en un solo lugar.</p></div>
-      <div className="flex flex-wrap gap-2"><button type="button" onClick={refresh} disabled={refreshing} className={secondary}><Icon name="actualizar" className={cx('h-4 w-4', refreshing && 'animate-spin')} />{refreshing ? 'Actualizando…' : 'Actualizar'}</button>
-        <button type="button" onClick={() => onNavigate('reportes')} className={primary}><Icon name="reporte" className="h-4 w-4" />Ver reportes</button></div>
+    <header className="space-y-3">
+      <div className="flex items-center justify-between gap-2">
+        <h1 className="min-w-0 sca-page-title">Resumen ejecutivo</h1>
+        <button type="button" onClick={refresh} disabled={refreshing} className="sca-button shrink-0">
+          <Icon name="actualizar" className={cx('hidden h-4 w-4 sm:block', refreshing && 'motion-safe:animate-spin')} />
+          {refreshing ? 'Actualizando…' : 'Actualizar'}
+        </button>
+      </div>
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+        <div className="flex w-full min-w-0 items-center gap-3 sm:order-last sm:ml-auto sm:w-auto">
+          <label htmlFor="dashboard-category" className="sca-field-label">Categoría</label>
+          <Select id="dashboard-category" value={category} onChange={(event) => setCategory(event.target.value)}
+            className="flex-1 sm:w-56 sm:flex-none">
+            <option value="">Todas las categorías</option>
+            {allSummary?.categorias.map((c) => <option key={c.key} value={c.key}>{c.label}</option>)}
+          </Select>
+        </div>
+        {sources.bienes.updatedAt && <p className="sca-muted">
+          Actualizado a las <time dateTime={sources.bienes.updatedAt.toISOString()}>{clock(sources.bienes.updatedAt)}</time>
+        </p>}
+      </div>
     </header>
 
     {errors.length > 0 && <div role="alert" className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-base leading-6 text-amber-900">
       <Icon name="alerta" className="mt-0.5 h-4 w-4" /><p>No se pudo actualizar: {errors.map((e) => e.label).join(', ')}. {errors.some(({ key }) => sources[key].data !== null) ? 'Se conservan los últimos datos consultados; vuelve a actualizar.' : 'Las consultas no disponibles se muestran con un guion.'}</p>
     </div>}
-
-    <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
-      <div className="flex flex-wrap items-center gap-2 text-base text-slate-600"><span className="font-semibold text-slate-700">Vista del inventario</span><span className="text-slate-300">/</span><span>{category ? allSummary?.categorias.find((c) => c.key === category)?.label : 'Todas las categorías'}</span>
-        {sources.bienes.updatedAt && <span className="text-slate-600">· Consulta a las {clock(sources.bienes.updatedAt)}</span>}</div>
-      <label className="flex min-w-0 items-center gap-2 text-base text-slate-600"><span className="shrink-0">Categoría</span><Select aria-label="Filtrar inventario por categoría" value={category} onChange={(event) => setCategory(event.target.value)} className={cx(selectClass, 'w-full sm:w-60')}>
-        <option value="">Todas las categorías</option>{allSummary?.categorias.map((c) => <option key={c.key} value={c.key}>{c.label}</option>)}</Select></label>
-    </div>
 
     <section aria-label="Indicadores del inventario" className="grid grid-cols-2 gap-3 lg:grid-cols-3 2xl:grid-cols-5">
       {cards.map((item) => <article key={item.key} data-dashboard-kpi={item.key} aria-busy={sources.bienes.status === 'loading'} className={cx(card, 'p-4 sm:p-5', item.key === 'costo' && 'col-span-2 lg:col-span-2 2xl:col-span-1')}>

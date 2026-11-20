@@ -4,7 +4,7 @@ import * as api from '../services/api';
 
 const REGIMENES = ['CAS', 'CAP', 'Practicante', 'Locador de servicios', 'Personal de confianza', 'Servir'];
 const WRITE_ROLES = ['administrador', 'jefatura', 'tecnico', 'almacen'];
-const inputClass = 'mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:bg-slate-100';
+const inputClass = 'mt-2 sca-field';
 const colors = { vigente: 'bg-emerald-50 text-emerald-700', programado: 'bg-blue-50 text-blue-700', vencido: 'bg-amber-50 text-amber-800', finalizado: 'bg-slate-100 text-slate-600' };
 const date = (value) => value ? String(value).slice(0, 10) : '';
 const formatDate = (value) => value ? date(value).split('-').reverse().join('/') : 'Sin fecha de término';
@@ -74,10 +74,11 @@ export default function VinculoLaboral({ personalId, currentUser, onClose, onSav
   return <div className="space-y-6">
     <button type="button" onClick={onClose} disabled={saving} className="text-sm font-semibold text-blue-700 disabled:opacity-50">← Volver a Personal</button>
     <div className="flex flex-wrap items-start justify-between gap-4">
-      <div><p className="text-xs font-semibold uppercase tracking-widest text-blue-600">Personal · CUS 12</p>
-        <h2 className="mt-2 text-2xl font-semibold text-slate-950">Vínculo laboral</h2>
-        <p className="mt-2 text-sm text-slate-500">Registra sus períodos laborales y consulta los cambios realizados.</p></div>
-      {canManage && data && <button type="button" onClick={() => edit(null)} disabled={saving} className="rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white disabled:opacity-50">Registrar vínculo</button>}
+      <div>
+        <h1 className="sca-page-title">Vínculo laboral</h1>
+        <p className="mt-2 sca-description">Registra sus períodos laborales y consulta los cambios realizados.</p>
+      </div>
+      {canManage && data && <button type="button" onClick={() => edit(null)} disabled={saving} className="sca-button sca-button-primary">Registrar vínculo</button>}
     </div>
     {error && <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">{error}
       <button type="button" onClick={async () => { setLoading(true); try { await load(); setShowForm(false); setError(''); } catch { setError('No se pudo recargar. Inténtalo nuevamente.'); } finally { setLoading(false); } }} disabled={saving} className="ml-3 font-semibold underline">Recargar datos</button></div>}
@@ -111,8 +112,8 @@ export default function VinculoLaboral({ personalId, currentUser, onClose, onSav
         </fieldset>
         <div className="mt-6 flex flex-wrap items-center justify-between gap-4 border-t border-slate-100 pt-5">
           <p className="text-xs text-slate-500">Los cambios quedan registrados con tu usuario, fecha y motivo.</p>
-          <div className="flex gap-3"><button type="button" disabled={saving} onClick={() => setShowForm(false)} className="rounded-xl border border-slate-200 px-5 py-3 text-sm font-semibold">Cancelar</button>
-            <button type="submit" disabled={saving} className="rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white disabled:opacity-50">{saving ? 'Guardando...' : 'Guardar vínculo'}</button></div>
+          <div className="flex flex-wrap gap-3"><button type="button" disabled={saving} onClick={() => setShowForm(false)} className="sca-button">Cancelar</button>
+            <button type="submit" disabled={saving} className="sca-button sca-button-primary">{saving ? 'Guardando...' : 'Guardar vínculo'}</button></div>
         </div>
       </form>}
       <section className="rounded-2xl border border-slate-200 bg-white p-6">

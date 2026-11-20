@@ -1,4 +1,5 @@
 import Select from './Select';
+import { configurationAuditLabel } from './Configuracion';
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import * as api from '../services/api';
 
@@ -14,7 +15,8 @@ const operationStyles = {
   LOGOUT: 'bg-slate-100 text-slate-700',
 };
 
-const moduleOptions = ['Todos', 'usuarios', 'personal', 'vinculo_laboral', 'bienes', 'mantenimiento', 'depreciacion', 'reportes', 'auditoria'];
+const configurationModule = 'configuracion_sistema';
+const moduleOptions = ['Todos', 'usuarios', 'personal', 'vinculo_laboral', 'bienes', 'mantenimiento', 'depreciacion', 'reportes', configurationModule, 'auditoria'];
 const actionOptions = ['Todas', 'INSERT', 'UPDATE', 'DELETE'];
 
 const formatAuditData = (data) => {
@@ -27,6 +29,7 @@ const formatAuditData = (data) => {
 const normalizeModulo = (value) => {
   if (!value) return 'Todos';
   if (String(value).toLowerCase() === 'autenticacion') return 'Autenticación';
+  if (value === configurationModule) return 'Configuración';
   return String(value).charAt(0).toUpperCase() + String(value).slice(1);
 };
 
@@ -88,6 +91,7 @@ const getAuditSearchScore = (log, query) => [
   log.usuario,
   log.email,
   log.tabla_afectada,
+  normalizeModulo(log.tabla_afectada),
   log.operacion,
   log.registro_id,
 ].reduce((bestScore, value) => Math.min(bestScore, scoreSearchMatch(query, value)), Infinity);
@@ -133,6 +137,38 @@ const formatAuditValue = (value) => {
   if (typeof value === 'object') return JSON.stringify(value, null, 2);
   return String(value);
 };
+
+function formatConfigurationValue(field, value) {
+  if (field.startsWith('catalogs.') && Array.isArray(value)) {
+    return value.map(({ valor, activo }) => activo ? valor : valor + ' (inactivo)').join('\n') || 'Sin opciones';
+  }
+  if (typeof value === 'boolean') return value ? 'Sí' : 'No';
+  return formatAuditValue(value);
+}
+
+function ConfigurationAuditDetails({ log }) {
+  const previous = parseAuditData(log.datos_anteriores);
+  const current = parseAuditData(log.datos_nuevos);
+  return (
+    <dl className="divide-y divide-slate-200">
+      {Object.keys(current).map((field) => (
+        <div key={field} className="py-3 first:pt-0 last:pb-0">
+          <dt className="font-semibold text-slate-900">{configurationAuditLabel(field)}</dt>
+          <dd className="mt-2 grid gap-x-4 gap-y-2 sm:grid-cols-2">
+            <div className="min-w-0">
+              <p className="sca-muted">Valor anterior</p>
+              <p className="whitespace-pre-wrap break-words text-slate-700">{formatConfigurationValue(field, previous[field])}</p>
+            </div>
+            <div className="min-w-0">
+              <p className="sca-muted">Valor nuevo</p>
+              <p className="whitespace-pre-wrap break-words text-slate-700">{formatConfigurationValue(field, current[field])}</p>
+            </div>
+          </dd>
+        </div>
+      ))}
+    </dl>
+  );
+}
 
 const isTechnicalField = (fieldName) => /ram|procesador|cpu|disco|ssd|hdd|pantalla|resolucion|video|gpu|fuente|parlantes|camara|sistema operativo|sistema_operativo/i.test(fieldName);
 
@@ -756,33 +792,30 @@ export default function Auditoria() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-4 rounded-[28px] border border-slate-200 bg-white/90 p-6 shadow-sm sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <p className="text-sm font-semibold uppercase tracking-[0.28em] text-blue-600">Seguridad y administración</p>
-          <h2 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">Log de Auditoría</h2>
-          <p className="mt-2 text-sm text-slate-500">Consulta la trazabilidad inmutable de las operaciones realizadas en el sistema.</p>
+      <header className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
+        <div className="min-w-0">
+          <h1 className="sca-page-title">Log de auditoría</h1>
+          <p className="mt-1 sca-description">Consulta la trazabilidad inmutable de las operaciones realizadas en el sistema.</p>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div role="group" aria-label="Exportar auditoría" className="ml-auto flex flex-wrap justify-end gap-2">
           <button
             type="button"
             onClick={handleExport}
             disabled={visibleLogs.length === 0}
-            className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-blue-200 hover:text-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+            className="sca-button"
           >
-            <span aria-hidden="true">📤</span>
             Exportar Excel
           </button>
           <button
             type="button"
             onClick={handleExportPdf}
             disabled={visibleLogs.length === 0 || pdfExporting}
-            className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+            className="sca-button"
           >
-            <span aria-hidden="true">📄</span>
             {pdfExporting ? 'Generando PDF...' : 'Exportar PDF'}
           </button>
         </div>
-      </div>
+      </header>
 
       <div className="flex gap-6 border-b border-slate-200" role="tablist" aria-label="Tipo de log de auditoría">
         {[
@@ -803,7 +836,7 @@ export default function Auditoria() {
       </div>
 
       <div className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm">
-        <div className="grid gap-4 md:grid-cols-3 xl:grid-cols-6">
+        <div className="grid gap-4 md:grid-cols-3 min-[1360px]:grid-cols-[minmax(0,1.2fr)_repeat(3,minmax(0,1fr))_minmax(10.5rem,1.1fr)_minmax(0,0.85fr)]">
           <div>
             <label htmlFor="audit-quick-search" className="mb-2 block text-sm font-medium text-slate-700">Búsqueda rápida</label>
             <div className="relative">
@@ -860,8 +893,9 @@ export default function Auditoria() {
           </div>
 
           <div>
-            <label className="mb-2 block text-sm font-medium text-slate-700">Módulo</label>
+            <label htmlFor="auditoria-modulo" className="mb-2 block text-sm font-medium text-slate-700">Módulo</label>
             <Select
+              id="auditoria-modulo"
               name="modulo"
               value={filters.modulo}
               onChange={handleFilterChange}
@@ -934,7 +968,9 @@ export default function Auditoria() {
                     <p className="font-semibold text-slate-900">{log.usuario}</p>
                     <p className="text-xs text-slate-500">{log.email || 'Correo no disponible'}</p>
                   </td>
-                  <td className="px-5 py-4 font-mono text-xs text-slate-600">{log.tabla_afectada || '-'}</td>
+                  <td className="px-5 py-4 text-xs text-slate-600">
+                    {log.tabla_afectada === configurationModule ? 'Configuración' : <span className="font-mono">{log.tabla_afectada || '-'}</span>}
+                  </td>
                   <td className="px-5 py-4">
                     <span className={`rounded-full px-3 py-1 text-xs font-semibold ${operationStyles[log.operacion] || 'bg-slate-100 text-slate-700'}`}>
                       {log.operacion || '-'}
@@ -965,7 +1001,7 @@ export default function Auditoria() {
                           Exportar este registro a PDF
                         </button>
                       </div>
-                      {logType === 'sesiones' ? (
+                      {log.tabla_afectada === configurationModule ? <ConfigurationAuditDetails log={log} /> : logType === 'sesiones' ? (
                         <div>
                           <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Datos</p>
                           <pre className="max-h-72 overflow-auto rounded-xl border border-slate-200 bg-white p-4 text-xs text-slate-700">{formatAuditData(log.datos_nuevos)}</pre>

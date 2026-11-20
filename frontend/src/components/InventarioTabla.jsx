@@ -1,11 +1,12 @@
 import { memo, useEffect, useId, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { VistaFotoBien } from './FotoBien';
 
 const MONEY = new Intl.NumberFormat('es-PE', { style: 'currency', currency: 'PEN', minimumFractionDigits: 2 });
 const TYPES = { laptop: 'Laptop', computadora: 'Computadora', all_in_one: 'All in One', servidor: 'Servidor', monitor: 'Monitor', impresora: 'Impresora', escaner: 'Escáner', teclado: 'Teclado', mouse: 'Mouse', router: 'Router', switch: 'Switch', switch_: 'Switch', nas: 'NAS', camara: 'Cámara', otro: 'Otro' };
 const STATES = {
-  activo: ['Activo', 'is-active'], asignado: ['Asignado', 'is-assigned'], mantenimiento: ['Mantenimiento', 'is-maintenance'],
-  baja: ['Baja', ''], dado_de_baja: ['Baja', ''], inactivo: ['Inactivo', ''],
+  activo: 'Activo', asignado: 'Asignado', mantenimiento: 'Mantenimiento',
+  baja: 'Baja', dado_de_baja: 'Baja', inactivo: 'Inactivo',
 };
 const PATHS = {
   box: 'm12 3 9 5-9 5-9-5 9-5ZM3 8v9l9 5 9-5V8M12 13v9',
@@ -19,6 +20,30 @@ function Icon({ name, size = 16 }) {
   return <svg width={size} height={size} style={{ width: size, height: size, flexShrink: 0 }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
     {name === 'more' ? <><circle cx="5" cy="12" r="1" /><circle cx="12" cy="12" r="1" /><circle cx="19" cy="12" r="1" /></> : <path d={PATHS[name] || PATHS.box} />}
   </svg>;
+}
+
+function AssetThumbnail({ image }) {
+  const frame = useRef(null);
+  const [showImage, setShowImage] = useState(() => typeof IntersectionObserver === 'undefined');
+
+  useEffect(() => {
+    if (!image || showImage) return;
+    const observer = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting) {
+        setShowImage(true);
+        observer.disconnect();
+      }
+    }, { rootMargin: '120px 0px' });
+    observer.observe(frame.current);
+    return () => observer.disconnect();
+  }, [image, showImage]);
+
+  return (
+    <span ref={frame} className="inventory-device-icon" aria-hidden="true">
+      <VistaFotoBien imagen={showImage ? image : null} alt="" className="inventory-device-photo"
+        fallback={<Icon name="box" size={18} />} />
+    </span>
+  );
 }
 
 function AssetActions({ bien, canEdit, canDelete, loading, historyLoading, onEdit, onHistory, onDelete }) {
@@ -74,22 +99,22 @@ function AssetActions({ bien, canEdit, canDelete, loading, historyLoading, onEdi
 }
 
 const InventarioTabla = memo(function InventarioTabla({ bienes, canEdit, canDelete, loading, historyLoading, hasFilters, onSpecs, onEdit, onHistory, onDelete }) {
-  return <section className="inventory-table-panel" aria-label="Listado de bienes informáticos"><div className="inventory-table-scroll"><table className="inventory-table">
+  return <section className="inventory-table-panel" aria-label="Listado de bienes informáticos"><div className="inventory-table-scroll sca-records"><table className="inventory-table sca-responsive-table" role="table">
     <colgroup><col className="inventory-col-code" /><col className="inventory-col-device" /><col className="inventory-col-cost" /><col className="inventory-col-owner" /><col className="inventory-col-status" /><col className="inventory-col-actions" /></colgroup>
-    <thead><tr><th scope="col">Código patrimonial</th><th scope="col">Equipo</th><th scope="col" className="inventory-align-right">Costo</th><th scope="col">Responsable</th><th scope="col">Estado</th><th scope="col" className="inventory-align-right">Acciones</th></tr></thead>
-    <tbody>{bienes.length ? bienes.map((bien) => {
-      const state = STATES[bien.estado] || [String(bien.estado || 'Sin estado').replaceAll('_', ' '), ''];
+    <thead role="rowgroup"><tr role="row"><th scope="col">Código patrimonial</th><th scope="col">Equipo</th><th scope="col" className="inventory-align-right">Costo</th><th scope="col">Responsable</th><th scope="col">Estado</th><th scope="col" className="inventory-align-right">Acciones</th></tr></thead>
+    <tbody role="rowgroup">{bienes.length ? bienes.map((bien) => {
+      const state = STATES[bien.estado] || String(bien.estado || 'Sin estado').replaceAll('_', ' ');
       const brand = [bien.marca, bien.modelo].filter(Boolean).join(' · ');
       const hasCost = bien.costo !== null && bien.costo !== undefined && bien.costo !== '' && Number.isFinite(Number(bien.costo));
-      return <tr key={bien.id}>
-        <td><span className={bien.codigo_patrimonial ? 'inventory-code' : 'inventory-missing'} title={bien.codigo_patrimonial || undefined}>{bien.codigo_patrimonial || 'Sin código'}</span>{bien.numero_serie && <span className="inventory-secondary" title={'Serie: ' + bien.numero_serie}>Serie: {bien.numero_serie}</span>}</td>
-        <td><div className="inventory-device"><span className="inventory-device-icon"><Icon name="box" size={18} /></span><div className="inventory-device-copy"><button type="button" className="inventory-device-name" onClick={() => onSpecs(bien)} title={bien.nombre}>{bien.nombre}</button><div className="inventory-device-meta"><span className="inventory-type">{TYPES[bien.tipo] || bien.tipo || 'Sin tipo'}</span>{brand && <span title={brand}>{brand}</span>}</div></div></div></td>
-        <td className="inventory-align-right">{hasCost ? <span className="inventory-money">{MONEY.format(Number(bien.costo))}</span> : <span className="inventory-missing">Sin valor</span>}</td>
-        <td>{bien.usuario_asignado ? <div className="inventory-owner"><Icon name="user" size={14} /><span title={bien.usuario_asignado}>{bien.usuario_asignado}</span></div> : <span className="inventory-missing">No registrado</span>}</td>
-        <td><span className={'inventory-status ' + state[1]}>{state[0]}</span></td>
-        <td><div className="inventory-row-actions"><button type="button" onClick={() => onSpecs(bien)} className="inventory-view-button" aria-label={'Ver ficha de ' + bien.nombre}><Icon name="eye" size={14} />Ver ficha</button><AssetActions bien={bien} canEdit={canEdit} canDelete={canDelete} loading={loading} historyLoading={historyLoading} onEdit={onEdit} onHistory={onHistory} onDelete={onDelete} /></div></td>
+      return <tr role="row" key={bien.id}>
+        <td role="cell"><span className="sca-table-label" aria-hidden="true">Código patrimonial</span><span className={bien.codigo_patrimonial ? 'inventory-code' : 'inventory-missing'} title={bien.codigo_patrimonial || undefined}>{bien.codigo_patrimonial || 'Sin código'}</span>{bien.numero_serie && <span className="inventory-secondary" title={'Serie: ' + bien.numero_serie}>Serie: {bien.numero_serie}</span>}</td>
+        <td role="cell" className="sca-record-primary"><div className="inventory-device"><AssetThumbnail image={bien.imagen_url} /><div className="inventory-device-copy"><button type="button" className="inventory-device-name" onClick={() => onSpecs(bien)} title={bien.nombre}>{bien.nombre}</button><div className="inventory-device-meta"><span className="inventory-type">{TYPES[bien.tipo] || bien.tipo || 'Sin tipo'}</span>{brand && <span title={brand}>{brand}</span>}</div></div></div></td>
+        <td role="cell" className="inventory-align-right"><span className="sca-table-label" aria-hidden="true">Costo</span>{hasCost ? <span className="inventory-money">{MONEY.format(Number(bien.costo))}</span> : <span className="inventory-missing">Sin valor</span>}</td>
+        <td role="cell"><span className="sca-table-label" aria-hidden="true">Responsable</span>{bien.usuario_asignado ? <div className="inventory-owner"><Icon name="user" size={14} /><span title={bien.usuario_asignado}>{bien.usuario_asignado}</span></div> : <span className="inventory-missing">No registrado</span>}</td>
+        <td role="cell"><span className="sca-table-label" aria-hidden="true">Estado</span><span className="sca-status" data-state={bien.estado}>{state}</span></td>
+        <td role="cell" className="sca-record-actions"><div className="inventory-row-actions"><button type="button" onClick={() => onSpecs(bien)} className="sca-button sca-button-row inventory-view-button" aria-label={'Ver ficha de ' + bien.nombre}><Icon name="eye" size={14} />Ver ficha</button><AssetActions bien={bien} canEdit={canEdit} canDelete={canDelete} loading={loading} historyLoading={historyLoading} onEdit={onEdit} onHistory={onHistory} onDelete={onDelete} /></div></td>
       </tr>;
-    }) : <tr><td colSpan="6" className="inventory-empty"><Icon name="box" size={28} /><p>{hasFilters ? 'No hay bienes que coincidan con los filtros' : 'No hay bienes registrados'}</p></td></tr>}</tbody>
+    }) : <tr role="row"><td role="cell" colSpan="6" className="inventory-empty sca-record-wide"><Icon name="box" size={28} /><p>{hasFilters ? 'No hay bienes que coincidan con los filtros' : 'No hay bienes registrados'}</p></td></tr>}</tbody>
   </table></div></section>;
 });
 

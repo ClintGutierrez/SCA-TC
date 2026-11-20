@@ -130,10 +130,9 @@ export default function Movimientos({ bienes = [], personal = [], canManage = fa
 
   return (
     <div className="space-y-6">
-      <header className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm">
-        <p className="text-sm font-semibold uppercase tracking-[0.28em] text-blue-600">Control patrimonial</p>
-        <h2 className="mt-2 text-2xl font-semibold text-slate-950">Movimientos patrimoniales</h2>
-        <p className="mt-2 text-sm text-slate-500">Registra asignaciones, reemplazos de equipos averiados, retiros y préstamos con autorización y documento imprimible.</p>
+      <header>
+        <h1 className="sca-page-title">Movimientos patrimoniales</h1>
+        <p className="mt-1 sca-description">Registra asignaciones, reemplazos de equipos averiados, retiros y préstamos con autorización y documento imprimible.</p>
       </header>
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -151,7 +150,7 @@ export default function Movimientos({ bienes = [], personal = [], canManage = fa
 
       {canManage && (
         <form onSubmit={submit} className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm">
-          <h3 className="text-xl font-semibold text-slate-950">Registrar {TYPES.find(([key]) => key === type)?.[1].toLowerCase()}</h3>
+          <h2 className="sca-section-title">Registrar {TYPES.find(([key]) => key === type)?.[1].toLowerCase()}</h2>
           <div className="mt-5 grid gap-4 md:grid-cols-2">
             <label className="block text-sm font-medium text-slate-700">
               Buscar bien
